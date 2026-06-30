@@ -9,7 +9,11 @@ import {
   FolderLock, 
   ChevronDown, 
   LogOut,
-  Sparkles
+  Sparkles,
+  Library,
+  Megaphone,
+  Video,
+  MapPin
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import QuizManager from './components/QuizManager';
@@ -23,6 +27,10 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import AdminDashboard from './components/AdminDashboard';
 import ClassRosterManager from './components/ClassRosterManager';
 import LecturerCourseManager from './components/LecturerCourseManager';
+import MaterialsManager from './components/MaterialsManager';
+import AnnouncementsForum from './components/AnnouncementsForum';
+import VirtualClassManager from './components/VirtualClassManager';
+import AttendanceManager from './components/AttendanceManager';
 
 // --- INITIAL SEED DATA FOR OFFLINE FALLBACK ---
 const INITIAL_COURSES = [
@@ -115,6 +123,11 @@ export default function App() {
   const [assignments, setAssignments] = useState(() => loadOffline('fud_assessment_assignments', INITIAL_ASSIGNMENTS));
   const [submissions, setSubmissions] = useState(() => loadOffline('fud_assessment_submissions', INITIAL_SUBMISSIONS));
   const [groups, setGroups] = useState(() => loadOffline('fud_assessment_groups', INITIAL_GROUPS));
+  const [materials, setMaterials] = useState(() => loadOffline('fud_assessment_materials', []));
+  const [announcements, setAnnouncements] = useState(() => loadOffline('fud_assessment_announcements', []));
+  const [virtualClasses, setVirtualClasses] = useState(() => loadOffline('fud_assessment_virtual_classes', []));
+  const [attendanceSessions, setAttendanceSessions] = useState(() => loadOffline('fud_assessment_attendance_sessions', []));
+  const [attendanceRecords, setAttendanceRecords] = useState(() => loadOffline('fud_assessment_attendance_records', []));
 
   // Auth States
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -163,6 +176,31 @@ export default function App() {
     if (isSupabaseConfigured) return;
     localStorage.setItem('fud_assessment_groups', JSON.stringify(groups));
   }, [groups]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_materials', JSON.stringify(materials));
+  }, [materials]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_announcements', JSON.stringify(announcements));
+  }, [announcements]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_virtual_classes', JSON.stringify(virtualClasses));
+  }, [virtualClasses]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_attendance_sessions', JSON.stringify(attendanceSessions));
+  }, [attendanceSessions]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_attendance_records', JSON.stringify(attendanceRecords));
+  }, [attendanceRecords]);
 
   // Auth local caching
   useEffect(() => {
@@ -267,6 +305,31 @@ export default function App() {
           });
           setGroups(assembledGroups);
         }
+
+        // Fetch materials
+        const { data: materialsData, error: materialsError } = await supabase.from('lecture_materials').select('*');
+        if (materialsError) throw materialsError;
+        if (materialsData) setMaterials(materialsData);
+
+        // Fetch announcements
+        const { data: announcementsData, error: announcementsError } = await supabase.from('announcements').select('*');
+        if (announcementsError) throw announcementsError;
+        if (announcementsData) setAnnouncements(announcementsData);
+
+        // Fetch virtual classes
+        const { data: virtualData, error: virtualError } = await supabase.from('virtual_classes').select('*');
+        if (virtualError) throw virtualError;
+        if (virtualData) setVirtualClasses(virtualData);
+
+        // Fetch attendance sessions
+        const { data: sessionsData, error: sessionsError } = await supabase.from('attendance_sessions').select('*');
+        if (sessionsError) throw sessionsError;
+        if (sessionsData) setAttendanceSessions(sessionsData);
+
+        // Fetch attendance records
+        const { data: recordsData, error: recordsError } = await supabase.from('attendance_records').select('*');
+        if (recordsError) throw recordsError;
+        if (recordsData) setAttendanceRecords(recordsData);
       } catch (err) {
         console.error('Error fetching Supabase data, utilizing offline caches instead:', err);
         setDbError(err.message || JSON.stringify(err));
@@ -688,6 +751,169 @@ export default function App() {
     triggerToast('Password changed successfully!');
   };
 
+  const handleAddMaterial = async (newMaterial) => {
+    if (isSupabaseConfigured) {
+      const dbMaterial = {
+        id: newMaterial.id,
+        course_id: newMaterial.course_id,
+        title: newMaterial.title,
+        type: newMaterial.type,
+        url: newMaterial.url,
+        description: newMaterial.description
+      };
+      const { error } = await supabase.from('lecture_materials').insert([dbMaterial]);
+      if (error) {
+        alert("Supabase Add Material Error: " + error.message);
+        return;
+      }
+    }
+    setMaterials([...materials, newMaterial]);
+    triggerToast("Material published successfully!");
+  };
+
+  const handleDeleteMaterial = async (materialId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('lecture_materials').delete().eq('id', materialId);
+      if (error) {
+        alert("Supabase Delete Material Error: " + error.message);
+        return;
+      }
+    }
+    setMaterials(materials.filter(m => m.id !== materialId));
+    triggerToast("Material deleted.");
+  };
+
+  const handleAddAnnouncement = async (newAnnouncement) => {
+    if (isSupabaseConfigured) {
+      const dbAnn = {
+        id: newAnnouncement.id,
+        course_id: newAnnouncement.course_id,
+        title: newAnnouncement.title,
+        content: newAnnouncement.content
+      };
+      const { error } = await supabase.from('announcements').insert([dbAnn]);
+      if (error) {
+        alert("Supabase Add Announcement Error: " + error.message);
+        return;
+      }
+    }
+    setAnnouncements([...announcements, newAnnouncement]);
+    triggerToast("Announcement posted successfully!");
+  };
+
+  const handleDeleteAnnouncement = async (annId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('announcements').delete().eq('id', annId);
+      if (error) {
+        alert("Supabase Delete Announcement Error: " + error.message);
+        return;
+      }
+    }
+    setAnnouncements(announcements.filter(a => a.id !== annId));
+    triggerToast("Announcement removed.");
+  };
+
+  const handleAddVirtualClass = async (newClass) => {
+    if (isSupabaseConfigured) {
+      const dbClass = {
+        id: newClass.id,
+        course_id: newClass.course_id,
+        title: newClass.title,
+        meet_url: newClass.meet_url,
+        class_date: newClass.class_date,
+        class_time: newClass.class_time
+      };
+      const { error } = await supabase.from('virtual_classes').insert([dbClass]);
+      if (error) {
+        alert("Supabase Schedule Class Error: " + error.message);
+        return;
+      }
+    }
+    setVirtualClasses([...virtualClasses, newClass]);
+    triggerToast("Virtual class scheduled!");
+  };
+
+  const handleDeleteVirtualClass = async (classId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('virtual_classes').delete().eq('id', classId);
+      if (error) {
+        alert("Supabase Cancel Class Error: " + error.message);
+        return;
+      }
+    }
+    setVirtualClasses(virtualClasses.filter(c => c.id !== classId));
+    triggerToast("Virtual class cancelled.");
+  };
+
+  const handleAddAttendanceSession = async (newSession) => {
+    if (isSupabaseConfigured) {
+      const dbSession = {
+        id: newSession.id,
+        course_id: newSession.course_id,
+        title: newSession.title,
+        is_active: newSession.is_active
+      };
+      const { error } = await supabase.from('attendance_sessions').insert([dbSession]);
+      if (error) {
+        alert("Supabase Add Attendance Session Error: " + error.message);
+        return;
+      }
+    }
+    setAttendanceSessions([...attendanceSessions, newSession]);
+    triggerToast("Attendance register initiated!");
+  };
+
+  const handleToggleAttendanceSession = async (sessionId, isActive) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('attendance_sessions')
+        .update({ is_active: isActive })
+        .eq('id', sessionId);
+      if (error) {
+        alert("Supabase Toggle Attendance Error: " + error.message);
+        return;
+      }
+    }
+    setAttendanceSessions(attendanceSessions.map(s => 
+      s.id === sessionId ? { ...s, is_active: isActive, isActive } : s
+    ));
+    triggerToast(isActive ? "Attendance session opened." : "Attendance session closed.");
+  };
+
+  const handleDeleteAttendanceSession = async (sessionId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('attendance_sessions').delete().eq('id', sessionId);
+      if (error) {
+        alert("Supabase Delete Attendance Session Error: " + error.message);
+        return;
+      }
+    }
+    setAttendanceSessions(attendanceSessions.filter(s => s.id !== sessionId));
+    setAttendanceRecords(attendanceRecords.filter(r => r.session_id !== sessionId && r.sessionId !== sessionId));
+    triggerToast("Attendance session deleted.");
+  };
+
+  const handleMarkAttendance = async (newRecord) => {
+    if (isSupabaseConfigured) {
+      const dbRecord = {
+        id: newRecord.id,
+        session_id: newRecord.session_id,
+        student_id: newRecord.student_id,
+        student_name: newRecord.student_name,
+        reg_no: newRecord.reg_no,
+        gps_lat: newRecord.gps_lat,
+        gps_lng: newRecord.gps_lng
+      };
+      const { error } = await supabase.from('attendance_records').insert([dbRecord]);
+      if (error) {
+        alert("Supabase Submit Attendance Error: " + error.message);
+        return;
+      }
+    }
+    setAttendanceRecords([...attendanceRecords, newRecord]);
+    triggerToast("Attendance successfully checked in!");
+  };
+
   // Gatekeeper: Render LoginPage if not authenticated
   if (!isAuthenticated || !currentUser) {
     return <LoginPage users={users} onLogin={handleLoginSuccess} onChangePassword={handleChangePassword} dbError={dbError} />;
@@ -787,6 +1013,42 @@ export default function App() {
               >
                 <BookOpen className="nav-icon" />
                 {isLecturer ? 'Gradebook Roster' : 'My Grades'}
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'materials' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('materials')}
+              >
+                <Library className="nav-icon" />
+                Lecture Materials
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'forum' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('forum')}
+              >
+                <Megaphone className="nav-icon" />
+                Announcements Forum
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'virtual' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('virtual')}
+              >
+                <Video className="nav-icon" />
+                Virtual Class
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'attendance' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('attendance')}
+              >
+                <MapPin className="nav-icon" />
+                {isLecturer ? 'Attendance Logs' : 'Mark Attendance'}
               </a>
             </li>
           </ul>
@@ -965,6 +1227,53 @@ export default function App() {
             <ClassRosterManager 
               users={users} 
               onImportStudents={handleImportStudents} 
+            />
+          )}
+
+          {currentTab === 'materials' && (
+            <MaterialsManager 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={visibleCourses}
+              materials={materials}
+              onAddMaterial={handleAddMaterial}
+              onDeleteMaterial={handleDeleteMaterial}
+            />
+          )}
+
+          {currentTab === 'forum' && (
+            <AnnouncementsForum 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={visibleCourses}
+              announcements={announcements}
+              onAddAnnouncement={handleAddAnnouncement}
+              onDeleteAnnouncement={handleDeleteAnnouncement}
+            />
+          )}
+
+          {currentTab === 'virtual' && (
+            <VirtualClassManager 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={visibleCourses}
+              virtualClasses={virtualClasses}
+              onAddVirtualClass={handleAddVirtualClass}
+              onDeleteVirtualClass={handleDeleteVirtualClass}
+            />
+          )}
+
+          {currentTab === 'attendance' && (
+            <AttendanceManager 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={visibleCourses}
+              attendanceSessions={attendanceSessions}
+              attendanceRecords={attendanceRecords}
+              onAddAttendanceSession={handleAddAttendanceSession}
+              onToggleAttendanceSession={handleToggleAttendanceSession}
+              onDeleteAttendanceSession={handleDeleteAttendanceSession}
+              onMarkAttendance={handleMarkAttendance}
             />
           )}
         </div>

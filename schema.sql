@@ -5,6 +5,11 @@
 -- This will build all required tables, constraints, and mock seed records.
 
 -- Clean existing tables if they exist (restarts schema cleanly)
+DROP TABLE IF EXISTS attendance_records CASCADE;
+DROP TABLE IF EXISTS attendance_sessions CASCADE;
+DROP TABLE IF EXISTS virtual_classes CASCADE;
+DROP TABLE IF EXISTS announcements CASCADE;
+DROP TABLE IF EXISTS lecture_materials CASCADE;
 DROP TABLE IF EXISTS submissions CASCADE;
 DROP TABLE IF EXISTS group_members CASCADE;
 DROP TABLE IF EXISTS groups CASCADE;
@@ -143,3 +148,65 @@ INSERT INTO assignments (id, course_id, title, description, max_score, due_date,
 -- Seed Submissions
 INSERT INTO submissions (id, task_id, student_id, type, is_group_submission, group_id, group_name, attachment_name, submission_text, score, feedback, submitted_at) VALUES
 ('sub_seed_1', 'quiz_seed_1', 'student_chidi', 'quiz', FALSE, NULL, NULL, NULL, NULL, 100, 'Auto-graded upon submission', '2026-05-20');
+
+-- ============================================================================
+-- Extension Tables
+-- ============================================================================
+
+-- 8. Lecture Materials Table
+CREATE TABLE lecture_materials (
+    id VARCHAR(50) PRIMARY KEY,
+    course_id VARCHAR(50) NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('Slide', 'Book', 'Other')),
+    url TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 9. Announcements Forum Table
+CREATE TABLE announcements (
+    id VARCHAR(50) PRIMARY KEY,
+    course_id VARCHAR(50) NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 10. Virtual Classes Table (Google Meet links)
+CREATE TABLE virtual_classes (
+    id VARCHAR(50) PRIMARY KEY,
+    course_id VARCHAR(50) NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    meet_url TEXT NOT NULL,
+    class_date VARCHAR(50) NOT NULL,
+    class_time VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 11. Attendance Sessions Table
+CREATE TABLE attendance_sessions (
+    id VARCHAR(50) PRIMARY KEY,
+    course_id VARCHAR(50) NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 12. Attendance Records Table (capturing GPS locations)
+CREATE TABLE attendance_records (
+    id VARCHAR(50) PRIMARY KEY,
+    session_id VARCHAR(50) NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
+    student_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_name VARCHAR(100) NOT NULL,
+    reg_no VARCHAR(50) NOT NULL,
+    marked_at TIMESTAMP DEFAULT NOW(),
+    gps_lat DOUBLE PRECISION,
+    gps_lng DOUBLE PRECISION,
+    UNIQUE(session_id, student_id)
+);
+
+-- Grant privileges for Anonymous and Authenticated users to query and insert into tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+

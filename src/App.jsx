@@ -374,10 +374,10 @@ export default function App() {
   };
 
   // Find active user
-  const activeUser = currentUser || users.find(u => u.id === currentRole) || users[0];
-  const isLecturer = activeUser.role === 'lecturer';
+  const activeUser = currentUser || users.find(u => u.id === currentRole) || users[0] || { id: 'unknown', role: 'student', name: 'User', avatar: 'U' };
+  const isLecturer = activeUser?.role === 'lecturer';
 
-  const lecturerCourses = courses.filter(c => c.lecturerId === activeUser.id || c.lecturer_id === activeUser.id);
+  const lecturerCourses = courses.filter(c => c.lecturerId === activeUser?.id || c.lecturer_id === activeUser?.id);
   const visibleCourses = isLecturer ? lecturerCourses : courses;
 
   // Sync selectedCourseId for lecturers
@@ -403,7 +403,7 @@ export default function App() {
     return u;
   });
 
-  const activeUserEnriched = enrichedUsers.find(u => u.id === activeUser.id) || enrichedUsers[0];
+  const activeUserEnriched = (activeUser && enrichedUsers.find(u => u.id === activeUser.id)) || enrichedUsers[0] || { id: 'unknown', role: 'student', name: 'User', avatar: 'U' };
 
   // --- ACTIONS FOR STATE ENGINE (SUPABASE POSTGRES WRITER) ---
   

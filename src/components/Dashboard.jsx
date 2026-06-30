@@ -21,8 +21,8 @@ export default function Dashboard({
   setCurrentTab,
   setSelectedCourseId
 }) {
-  const user = users.find(u => u.id === currentRole) || users[0];
-  const isLecturer = user.role === 'lecturer';
+  const user = users.find(u => u.id === currentRole) || users[0] || { id: 'unknown', role: 'student', name: 'User', avatar: 'U' };
+  const isLecturer = user?.role === 'lecturer';
 
   // Filter courses for Lecturers: only show courses they offer
   const displayCourses = isLecturer 
@@ -59,7 +59,7 @@ export default function Dashboard({
     const completedQuizzesCount = submissions.filter(sub => sub.studentId === studentId && sub.type === 'quiz').length;
     
     // Assignments submitted by this student (including group submissions they belong to)
-    const studentGroup = user.groupId;
+    const studentGroup = user?.groupId;
     const submittedAssignmentsCount = submissions.filter(sub => {
       if (sub.type !== 'assignment') return false;
       if (sub.isGroupSubmission) {
@@ -99,12 +99,12 @@ export default function Dashboard({
     ];
   };
 
-  const stats = isLecturer ? lecturerStats() : studentStats(user.id);
+  const stats = isLecturer ? lecturerStats() : studentStats(user?.id);
 
   // Get student's group mates
   const getGroupMates = () => {
-    if (isLecturer || !user.groupId) return [];
-    return users.filter(u => u.groupId === user.groupId && u.id !== user.id);
+    if (isLecturer || !user?.groupId) return [];
+    return users.filter(u => u.groupId === user?.groupId && u.id !== user?.id);
   };
 
   const groupMates = getGroupMates();
@@ -115,7 +115,7 @@ export default function Dashboard({
     if (isLecturer) return [];
     
     const submittedIds = submissions
-      .filter(sub => sub.studentId === user.id || (sub.isGroupSubmission && sub.groupId === user.groupId))
+      .filter(sub => sub.studentId === user?.id || (sub.isGroupSubmission && sub.groupId === user?.groupId))
       .map(sub => sub.taskId);
 
     const upcomingQuizzes = quizzes
@@ -153,7 +153,7 @@ export default function Dashboard({
       // Show latest grades/feedback
       return submissions
         .filter(sub => {
-          const isMatch = sub.studentId === user.id || (sub.isGroupSubmission && sub.groupId === user.groupId);
+          const isMatch = sub.studentId === user?.id || (sub.isGroupSubmission && sub.groupId === user?.groupId);
           return isMatch && sub.score !== undefined && sub.score !== null;
         })
         .slice(-4)
@@ -186,7 +186,7 @@ export default function Dashboard({
         padding: '30px'
       }}>
         <h2 style={{ color: '#ffffff', fontSize: '1.8rem', marginBottom: '8px' }}>
-          Welcome back, {user.name}!
+          Welcome back, {user?.name || 'User'}!
         </h2>
         <p style={{ opacity: 0.85, fontSize: '0.95rem', maxWidth: '600px' }}>
           {isLecturer 
@@ -245,7 +245,7 @@ export default function Dashboard({
           </div>
 
           {/* Group Panel (Student Only) */}
-          {!isLecturer && user.groupId && (
+          {!isLecturer && user?.groupId && (
             <div className="card" style={{ borderLeft: '4px solid var(--secondary)' }}>
               <h3 className="card-title">
                 <Users size={20} style={{ color: 'var(--secondary)' }} />
@@ -253,7 +253,7 @@ export default function Dashboard({
               </h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
                 <div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1.05rem' }}>{user.groupName}</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '1.05rem' }}>{user?.groupName}</h4>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     Collaboration circle for group assignments and quizzes
                   </p>
@@ -261,7 +261,7 @@ export default function Dashboard({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Team:</span>
                   <div className="group-mate-stack">
-                    <span className="group-mate-avatar" title={user.name}>{user.name.charAt(0)}</span>
+                    <span className="group-mate-avatar" title={user?.name || 'User'}>{(user?.name || 'U').charAt(0)}</span>
                     {groupMates.map(mate => (
                       <span 
                         key={mate.id} 

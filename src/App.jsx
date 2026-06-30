@@ -1,0 +1,982 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  BookOpen, 
+  Award, 
+  Users, 
+  CheckCircle, 
+  LayoutDashboard, 
+  FileText, 
+  FolderLock, 
+  ChevronDown, 
+  LogOut,
+  Sparkles
+} from 'lucide-react';
+import Dashboard from './components/Dashboard';
+import QuizManager from './components/QuizManager';
+import AssignmentManager from './components/AssignmentManager';
+import QuizTaker from './components/QuizTaker';
+import AssignmentSubmitter from './components/AssignmentSubmitter';
+import Gradebook from './components/Gradebook';
+import GroupManager from './components/GroupManager';
+import LoginPage from './components/LoginPage';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
+import AdminDashboard from './components/AdminDashboard';
+import ClassRosterManager from './components/ClassRosterManager';
+import LecturerCourseManager from './components/LecturerCourseManager';
+
+// --- INITIAL SEED DATA FOR OFFLINE FALLBACK ---
+const INITIAL_COURSES = [
+  { id: 'cosc_301', code: 'COSC 301', name: 'Software Engineering', semester: 'First Semester', department: 'Computer Science', lecturerId: 'lecturer_bello', lecturer_id: 'lecturer_bello' },
+  { id: 'cosc_305', code: 'COSC 305', name: 'Database Systems Design', semester: 'First Semester', department: 'Computer Science', lecturerId: 'lecturer_bello', lecturer_id: 'lecturer_bello' }
+];
+
+const INITIAL_USERS = [
+  { id: 'admin_fud', name: 'System Administrator', email: 'admin@fud.edu.ng', role: 'admin', avatar: 'AD', password: 'password123', is_first_login: false },
+  { id: 'lecturer_bello', name: 'Dr. Bello', email: 'bello@fud.edu.ng', role: 'lecturer', avatar: 'DB', password: 'password123', is_first_login: false },
+  { id: 'student_aliyu', name: 'Aliyu Ibrahim', email: 'FUD/CSC/22/1001', role: 'student', avatar: 'AI', password: 'password123', is_first_login: false },
+  { id: 'student_fatima', name: 'Fatima Abubakar', email: 'FUD/CSC/22/1002', role: 'student', avatar: 'FA', password: 'password123', is_first_login: false },
+  { id: 'student_chidi', name: 'Chidi Okafor', email: 'FUD/CSC/22/1003', role: 'student', avatar: 'CO', password: 'password123', is_first_login: false }
+];
+
+const INITIAL_GROUPS = [
+  { id: 'group_alpha', name: 'Group Alpha', courseId: 'cosc_301', leaderId: 'student_aliyu', memberIds: ['student_aliyu', 'student_fatima'] },
+  { id: 'group_beta', name: 'Group Beta', courseId: 'cosc_301', leaderId: 'student_chidi', memberIds: ['student_chidi'] }
+];
+
+const INITIAL_QUIZZES = [
+  {
+    id: 'quiz_seed_1',
+    courseId: 'cosc_301',
+    title: 'Software Development Methodologies',
+    description: 'Covers agile methodologies, scrum practices, waterfall models, and spiral lifecycle development.',
+    timeLimit: 5,
+    questions: [
+      {
+        id: 'q1',
+        text: 'Which methodology is characterized by iterative cycles called Sprints?',
+        type: 'mcq',
+        options: ['Waterfall', 'Scrum / Agile', 'V-Model', 'Spiral Model'],
+        correctOptionIndex: 1
+      },
+      {
+        id: 'q2',
+        text: 'The Waterfall model is highly adaptive and suitable for requirements that change rapidly.',
+        type: 'tf',
+        options: ['True', 'False'],
+        correctOptionIndex: 1
+      }
+    ]
+  }
+];
+
+const INITIAL_ASSIGNMENTS = [
+  {
+    id: 'assign_seed_1',
+    courseId: 'cosc_305',
+    title: 'Entity Relationship Diagram (ERD)',
+    description: 'Design a comprehensive ERD diagram representing an online university registry. Detail attributes, primary keys, and relationships.',
+    maxScore: 100,
+    dueDate: '2026-06-01',
+    isGroup: false
+  },
+  {
+    id: 'assign_seed_2',
+    courseId: 'cosc_301',
+    title: 'Software Requirement Specifications (SRS)',
+    description: 'In your assigned student groups, write an IEEE Standard 830 compliant SRS document for an automated student clinic reservation portal.',
+    maxScore: 100,
+    dueDate: '2026-06-15',
+    isGroup: true
+  }
+];
+
+const INITIAL_SUBMISSIONS = [
+  {
+    id: 'sub_seed_1',
+    taskId: 'quiz_seed_1',
+    studentId: 'student_chidi',
+    type: 'quiz',
+    score: 100,
+    maxScore: 100,
+    submittedAt: '2026-05-20'
+  }
+];
+
+export default function App() {
+  const loadOffline = (key, seed) => {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : seed;
+  };
+
+  // State caches
+  const [courses, setCourses] = useState(() => loadOffline('fud_assessment_courses', INITIAL_COURSES));
+  const [users, setUsers] = useState(() => loadOffline('fud_assessment_users', INITIAL_USERS));
+  const [quizzes, setQuizzes] = useState(() => loadOffline('fud_assessment_quizzes', INITIAL_QUIZZES));
+  const [assignments, setAssignments] = useState(() => loadOffline('fud_assessment_assignments', INITIAL_ASSIGNMENTS));
+  const [submissions, setSubmissions] = useState(() => loadOffline('fud_assessment_submissions', INITIAL_SUBMISSIONS));
+  const [groups, setGroups] = useState(() => loadOffline('fud_assessment_groups', INITIAL_GROUPS));
+
+  // Auth States
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('fud_assessment_auth') === 'true';
+  });
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('fud_assessment_user_obj');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // State controls
+  const [currentRole, setCurrentRole] = useState(() => {
+    const savedUser = localStorage.getItem('fud_assessment_user_obj');
+    return savedUser ? JSON.parse(savedUser).id : 'lecturer_bello';
+  });
+
+  const [currentTab, setCurrentTab] = useState('dashboard'); // dashboard, quizzes, assignments, gradebook, groups
+  const [selectedCourseId, setSelectedCourseId] = useState(INITIAL_COURSES[0].id);
+  const [toast, setToast] = useState(null);
+  const [dbError, setDbError] = useState(null);
+
+  // --- 1. OFFLINE STORAGE SYNC EFFECTS ---
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_courses', JSON.stringify(courses));
+    localStorage.setItem('fud_assessment_users', JSON.stringify(users));
+  }, [courses, users]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_quizzes', JSON.stringify(quizzes));
+  }, [quizzes]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_assignments', JSON.stringify(assignments));
+  }, [assignments]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_submissions', JSON.stringify(submissions));
+  }, [submissions]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_groups', JSON.stringify(groups));
+  }, [groups]);
+
+  // Auth local caching
+  useEffect(() => {
+    localStorage.setItem('fud_assessment_auth', isAuthenticated);
+    if (currentUser) {
+      localStorage.setItem('fud_assessment_user_obj', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('fud_assessment_user_obj');
+    }
+  }, [isAuthenticated, currentUser]);
+
+  // --- 2. SUPABASE BACKEND FETCH EFFECTS ---
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const fetchAllData = async () => {
+      try {
+        setDbError(null);
+
+        // Fetch courses
+        const { data: coursesData, error: coursesError } = await supabase.from('courses').select('*');
+        if (coursesError) throw coursesError;
+        if (coursesData) {
+          const mappedCourses = coursesData.map(c => ({
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            semester: c.semester,
+            department: c.department,
+            lecturerId: c.lecturer_id,
+            lecturer_id: c.lecturer_id
+          }));
+          setCourses(mappedCourses);
+        }
+
+        // Fetch users
+        const { data: usersData, error: usersError } = await supabase.from('users').select('*');
+        if (usersError) throw usersError;
+        if (usersData) {
+          const mappedUsers = usersData.map(u => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            avatar: u.avatar,
+            password: u.password,
+            is_first_login: u.is_first_login,
+            isFirstLogin: u.is_first_login
+          }));
+          setUsers(mappedUsers);
+        }
+
+        // Fetch quizzes
+        const { data: quizzesData, error: quizzesError } = await supabase.from('quizzes').select('*');
+        if (quizzesError) throw quizzesError;
+        if (quizzesData) setQuizzes(quizzesData);
+
+        // Fetch assignments
+        const { data: assignmentsData, error: assignmentsError } = await supabase.from('assignments').select('*');
+        if (assignmentsError) throw assignmentsError;
+        if (assignmentsData) setAssignments(assignmentsData);
+
+        // Fetch submissions and map to camelCase structure
+        const { data: submissionsData, error: submissionsError } = await supabase.from('submissions').select('*');
+        if (submissionsError) throw submissionsError;
+        if (submissionsData) {
+          const mapped = submissionsData.map(s => ({
+            id: s.id,
+            taskId: s.task_id,
+            studentId: s.student_id,
+            type: s.type,
+            isGroupSubmission: s.is_group_submission,
+            groupId: s.group_id,
+            groupName: s.group_name,
+            attachmentName: s.attachment_name,
+            submissionText: s.submission_text,
+            score: s.score,
+            feedback: s.feedback,
+            submittedAt: s.submitted_at
+          }));
+          setSubmissions(mapped);
+        }
+
+        // Fetch groups and members list from junction
+        const { data: groupsData, error: groupsError } = await supabase.from('groups').select('*');
+        if (groupsError) throw groupsError;
+        const { data: membersData, error: membersError } = await supabase.from('group_members').select('*');
+        if (membersError) throw membersError;
+
+        if (groupsData && membersData) {
+          const assembledGroups = groupsData.map(g => {
+            const memberIds = membersData
+              .filter(m => m.group_id === g.id)
+              .map(m => m.student_id);
+            return {
+              id: g.id,
+              name: g.name,
+              courseId: g.course_id,
+              leaderId: g.leader_id,
+              memberIds
+            };
+          });
+          setGroups(assembledGroups);
+        }
+      } catch (err) {
+        console.error('Error fetching Supabase data, utilizing offline caches instead:', err);
+        setDbError(err.message || JSON.stringify(err));
+      }
+    };
+
+    fetchAllData();
+  }, [isAuthenticated]);
+
+  // Show status toasts
+  const triggerToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Login event
+  const handleLoginSuccess = (userObj) => {
+    setCurrentUser(userObj);
+    setCurrentRole(userObj.id);
+    setIsAuthenticated(true);
+    setCurrentTab('dashboard');
+    triggerToast(`Welcome back, ${userObj.name}!`);
+  };
+
+  // Logout event
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    triggerToast(`Successfully signed out.`);
+  };
+
+  // Switch simulation role dropdown
+  const handleRoleChange = (e) => {
+    const newRoleId = e.target.value;
+    const match = users.find(u => u.id === newRoleId);
+    if (match) {
+      setCurrentUser(match);
+      setCurrentRole(newRoleId);
+      setCurrentTab('dashboard');
+      triggerToast(`Switched simulation role to ${match.name}!`);
+    }
+  };
+
+  // Find active user
+  const activeUser = currentUser || users.find(u => u.id === currentRole) || users[0];
+  const isLecturer = activeUser.role === 'lecturer';
+
+  const lecturerCourses = courses.filter(c => c.lecturerId === activeUser.id || c.lecturer_id === activeUser.id);
+  const visibleCourses = isLecturer ? lecturerCourses : courses;
+
+  // Sync selectedCourseId for lecturers
+  useEffect(() => {
+    if (isLecturer && lecturerCourses.length > 0) {
+      const hasSelected = lecturerCourses.some(c => c.id === selectedCourseId);
+      if (!hasSelected) {
+        setSelectedCourseId(lecturerCourses[0].id);
+      }
+    }
+  }, [currentUser, courses]);
+
+  // --- DYNAMICALLY RESOLVE GROUP MEMBERSHIP FOR GENERAL COMPATIBILITY ---
+  const enrichedUsers = users.map(u => {
+    if (u.role === 'student') {
+      const studentGroup = groups.find(g => g.memberIds.includes(u.id) && g.courseId === selectedCourseId);
+      return {
+        ...u,
+        groupId: studentGroup ? studentGroup.id : null,
+        groupName: studentGroup ? studentGroup.name : 'No Group'
+      };
+    }
+    return u;
+  });
+
+  const activeUserEnriched = enrichedUsers.find(u => u.id === activeUser.id) || enrichedUsers[0];
+
+  // --- ACTIONS FOR STATE ENGINE (SUPABASE POSTGRES WRITER) ---
+  
+  // 1. Add Quiz (Lecturer)
+  const handleAddQuiz = async (newQuiz) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('quizzes').insert([{
+        id: newQuiz.id,
+        course_id: newQuiz.courseId,
+        title: newQuiz.title,
+        description: newQuiz.description,
+        time_limit: newQuiz.timeLimit,
+        questions: newQuiz.questions
+      }]);
+      if (error) {
+        alert("Supabase SQL Write Error: " + error.message);
+        return;
+      }
+    }
+    setQuizzes([...quizzes, newQuiz]);
+    triggerToast(`Quiz "${newQuiz.title}" published successfully!`);
+  };
+
+  // 2. Add Assignment (Lecturer)
+  const handleAddAssignment = async (newAssign) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('assignments').insert([{
+        id: newAssign.id,
+        course_id: newAssign.courseId,
+        title: newAssign.title,
+        description: newAssign.description,
+        max_score: newAssign.maxScore,
+        due_date: newAssign.dueDate,
+        is_group: newAssign.isGroup
+      }]);
+      if (error) {
+        alert("Supabase SQL Write Error: " + error.message);
+        return;
+      }
+    }
+    setAssignments([...assignments, newAssign]);
+    triggerToast(`Assignment "${newAssign.title}" published successfully!`);
+  };
+
+  // 3. Submit Quiz (Student)
+  const handleSubmitQuiz = async (quizId, scorePercent) => {
+    const newSubId = 'sub_' + Date.now().toString();
+    const subAt = new Date().toLocaleDateString();
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('submissions').insert([{
+        id: newSubId,
+        task_id: quizId,
+        student_id: activeUser.id,
+        type: 'quiz',
+        is_group_submission: false,
+        score: scorePercent,
+        submitted_at: subAt
+      }]);
+      if (error) {
+        alert("Supabase SQL Write Error: " + error.message);
+        return;
+      }
+    }
+
+    const localSub = {
+      id: newSubId,
+      taskId: quizId,
+      studentId: activeUser.id,
+      type: 'quiz',
+      score: scorePercent,
+      maxScore: 100,
+      submittedAt: subAt
+    };
+
+    setSubmissions([...submissions, localSub]);
+    triggerToast(`Quiz submitted! Result: ${scorePercent}%`);
+  };
+
+  // 4. Submit Assignment (Student)
+  const handleSubmitAssignment = async (assignId, isGroup, groupId, groupName, file, notes) => {
+    const existingIndex = submissions.findIndex(s => 
+      s.taskId === assignId && 
+      (isGroup ? (s.isGroupSubmission && s.groupId === groupId) : (s.studentId === activeUser.id))
+    );
+
+    const subId = existingIndex >= 0 ? submissions[existingIndex].id : 'sub_' + Date.now().toString();
+    const subAt = new Date().toLocaleDateString();
+
+    if (isSupabaseConfigured) {
+      const sqlData = {
+        id: subId,
+        task_id: assignId,
+        student_id: activeUser.id,
+        type: 'assignment',
+        is_group_submission: isGroup,
+        group_id: isGroup ? groupId : null,
+        group_name: isGroup ? groupName : null,
+        attachment_name: file,
+        submission_text: notes,
+        submitted_at: subAt
+      };
+
+      if (existingIndex >= 0) {
+        const { error } = await supabase
+          .from('submissions')
+          .update({
+            attachment_name: file,
+            submission_text: notes,
+            submitted_at: subAt
+          })
+          .eq('id', subId);
+        if (error) {
+          alert("Supabase Update Error: " + error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.from('submissions').insert([sqlData]);
+        if (error) {
+          alert("Supabase Insert Error: " + error.message);
+          return;
+        }
+      }
+    }
+
+    const localData = {
+      id: subId,
+      taskId: assignId,
+      studentId: activeUser.id,
+      type: 'assignment',
+      isGroupSubmission: isGroup,
+      groupId: isGroup ? groupId : null,
+      groupName: isGroup ? groupName : null,
+      attachmentName: file,
+      submissionText: notes,
+      maxScore: assignments.find(a => a.id === assignId)?.maxScore || 100,
+      score: existingIndex >= 0 ? submissions[existingIndex].score : null,
+      feedback: existingIndex >= 0 ? submissions[existingIndex].feedback : null,
+      submittedAt: subAt
+    };
+
+    if (existingIndex >= 0) {
+      const updated = [...submissions];
+      updated[existingIndex] = localData;
+      setSubmissions(updated);
+      triggerToast(`Assignment submission updated!`);
+    } else {
+      setSubmissions([...submissions, localData]);
+      triggerToast(`Assignment submitted successfully!`);
+    }
+  };
+
+  // 5. Grade Submission (Lecturer)
+  const handleGradeSubmission = async (subId, score, feedback) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ score, feedback })
+        .eq('id', subId);
+
+      if (error) {
+        alert("Supabase Grading Error: " + error.message);
+        return;
+      }
+    }
+
+    setSubmissions(submissions.map(sub => {
+      if (sub.id === subId) {
+        return { ...sub, score, feedback };
+      }
+      return sub;
+    }));
+    const subToGrade = submissions.find(s => s.id === subId);
+    triggerToast(`Grade recorded for ${subToGrade?.isGroupSubmission ? subToGrade.groupName : 'student'}!`);
+  };
+
+  // 6. Group CRUD Handlers (Lecturer)
+  const handleAddGroup = async (newGroup) => {
+    if (isSupabaseConfigured) {
+      const { error: groupError } = await supabase.from('groups').insert([{
+        id: newGroup.id,
+        name: newGroup.name,
+        course_id: newGroup.courseId,
+        leader_id: newGroup.leaderId
+      }]);
+      if (groupError) {
+        alert("Group Save Error: " + groupError.message);
+        return;
+      }
+
+      const memberRecords = newGroup.memberIds.map(studentId => ({
+        group_id: newGroup.id,
+        student_id: studentId
+      }));
+      const { error: memberError } = await supabase.from('group_members').insert(memberRecords);
+      if (memberError) {
+        alert("Member Sync Error: " + memberError.message);
+        return;
+      }
+    }
+
+    setGroups([...groups, newGroup]);
+    triggerToast(`Group Circle "${newGroup.name}" created!`);
+  };
+
+  const handleUpdateGroup = async (updatedGroup) => {
+    if (isSupabaseConfigured) {
+      const { error: groupError } = await supabase
+        .from('groups')
+        .update({
+          name: updatedGroup.name,
+          leader_id: updatedGroup.leaderId
+        })
+        .eq('id', updatedGroup.id);
+
+      if (groupError) {
+        alert("Group Details Update Error: " + groupError.message);
+        return;
+      }
+
+      await supabase.from('group_members').delete().eq('group_id', updatedGroup.id);
+      
+      const memberRecords = updatedGroup.memberIds.map(studentId => ({
+        group_id: updatedGroup.id,
+        student_id: studentId
+      }));
+      const { error: memberError } = await supabase.from('group_members').insert(memberRecords);
+      if (memberError) {
+        alert("Member Roster Sync Error: " + memberError.message);
+        return;
+      }
+    }
+
+    setGroups(groups.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+    triggerToast(`Group details updated!`);
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('groups').delete().eq('id', groupId);
+      if (error) {
+        alert("Group Delete Error: " + error.message);
+        return;
+      }
+    }
+
+    setGroups(groups.filter(g => g.id !== groupId));
+    triggerToast(`Group circle removed.`);
+  };
+
+  const handleAddCourse = async (newCourse) => {
+    if (isSupabaseConfigured) {
+      const dbCourse = {
+        id: newCourse.id,
+        code: newCourse.code,
+        name: newCourse.name,
+        semester: newCourse.semester,
+        department: newCourse.department,
+        lecturer_id: newCourse.lecturer_id || newCourse.lecturerId
+      };
+      const { error } = await supabase.from('courses').insert([dbCourse]);
+      if (error) {
+        alert("Supabase Add Course Error: " + error.message);
+        return;
+      }
+    }
+    setCourses([...courses, newCourse]);
+    triggerToast(`Course "${newCourse.code}" added successfully!`);
+  };
+
+  const handleDeleteCourse = async (courseId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('courses').delete().eq('id', courseId);
+      if (error) {
+        alert("Supabase Delete Course Error: " + error.message);
+        return;
+      }
+    }
+    setCourses(courses.filter(c => c.id !== courseId));
+    triggerToast(`Course removed.`);
+  };
+
+  const handleAddUser = async (newUser) => {
+    if (isSupabaseConfigured) {
+      const dbUser = {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        avatar: newUser.avatar,
+        password: newUser.password,
+        is_first_login: newUser.is_first_login
+      };
+      const { error } = await supabase.from('users').insert([dbUser]);
+      if (error) {
+        alert("Supabase Add User Error: " + error.message);
+        return;
+      }
+    }
+    setUsers([...users, newUser]);
+    triggerToast(`User "${newUser.name}" added successfully!`);
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('users').delete().eq('id', userId);
+      if (error) {
+        alert("Supabase Delete User Error: " + error.message);
+        return;
+      }
+    }
+    setUsers(users.filter(u => u.id !== userId));
+    triggerToast(`User account removed.`);
+  };
+
+  const handleImportStudents = async (newStudents) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('users').insert(newStudents);
+      if (error) {
+        throw new Error(error.message);
+      }
+    }
+    setUsers([...users, ...newStudents]);
+    triggerToast(`Imported ${newStudents.length} students successfully!`);
+  };
+
+  const handleChangePassword = async (userId, newPassword) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          password: newPassword,
+          is_first_login: false
+        })
+        .eq('id', userId);
+      if (error) {
+        throw new Error("Supabase Password Update Error: " + error.message);
+      }
+    }
+    setUsers(users.map(u => 
+      u.id === userId 
+        ? { ...u, password: newPassword, is_first_login: false, isFirstLogin: false } 
+        : u
+    ));
+    triggerToast('Password changed successfully!');
+  };
+
+  // Gatekeeper: Render LoginPage if not authenticated
+  if (!isAuthenticated || !currentUser) {
+    return <LoginPage users={users} onLogin={handleLoginSuccess} onChangePassword={handleChangePassword} dbError={dbError} />;
+  }
+
+  // Admin Dashboard Workspace
+  if (currentUser.role === 'admin') {
+    return (
+      <AdminDashboard 
+        courses={courses}
+        users={users}
+        onAddCourse={handleAddCourse}
+        onDeleteCourse={handleDeleteCourse}
+        onAddUser={handleAddUser}
+        onDeleteUser={handleDeleteUser}
+        onSignOut={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <div className="app-container">
+      {/* Sidebar Navigation */}
+      <aside className="sidebar">
+        <div className="portal-brand">
+          <div className="portal-logo">F</div>
+          <div className="portal-brand-text">
+            <span className="portal-name">FUD System</span>
+            <span className="portal-subtitle">Assessment Portal</span>
+          </div>
+        </div>
+
+        <nav style={{ flexGrow: 1 }}>
+          <ul className="nav-links">
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('dashboard')}
+              >
+                <LayoutDashboard className="nav-icon" />
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'groups' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('groups')}
+              >
+                <Users className="nav-icon" />
+                {isLecturer ? 'Group Circles' : 'My Group'}
+              </a>
+            </li>
+            {isLecturer && (
+              <li>
+                <a 
+                  className={`nav-item ${currentTab === 'my_courses' ? 'active' : ''}`}
+                  onClick={() => setCurrentTab('my_courses')}
+                >
+                  <BookOpen className="nav-icon" />
+                  My Courses
+                </a>
+              </li>
+            )}
+            {isLecturer && (
+              <li>
+                <a 
+                  className={`nav-item ${currentTab === 'roster' ? 'active' : ''}`}
+                  onClick={() => setCurrentTab('roster')}
+                >
+                  <Users className="nav-icon" />
+                  Class Roster
+                </a>
+              </li>
+            )}
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'quizzes' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('quizzes')}
+              >
+                <Award className="nav-icon" />
+                {isLecturer ? 'Quiz Manager' : 'Quizzes'}
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'assignments' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('assignments')}
+              >
+                <FileText className="nav-icon" />
+                {isLecturer ? 'Assignment Editor' : 'Assignments'}
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'gradebook' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('gradebook')}
+              >
+                <BookOpen className="nav-icon" />
+                {isLecturer ? 'Gradebook Roster' : 'My Grades'}
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        {/* User Info Section at bottom with Sign Out */}
+        <div className="user-panel">
+          <div className="user-panel-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="user-avatar">
+                {activeUserEnriched.avatar}
+              </div>
+              <div className="user-details">
+                <span className="user-name">{activeUserEnriched.name}</span>
+                <span className="user-role">{isLecturer ? 'Lecturer' : 'Student (FUD)'}</span>
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              style={{
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-on-sidebar)',
+                opacity: 0.7,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                borderRadius: 'var(--radius-sm)'
+              }}
+              title="Sign Out of Portal"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="main-wrapper">
+        {/* Top Header */}
+        <header className="top-header">
+          <div>
+            <h1 className="page-title" style={{ textTransform: 'capitalize' }}>
+              {currentTab === 'groups' ? (isLecturer ? 'Group Roster' : 'My Group Circle') : currentTab}
+            </h1>
+          </div>
+
+          {/* Database Connection Status Banner */}
+          {!isSupabaseConfigured ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(234, 88, 12, 0.12)',
+              color: 'var(--color-warning)',
+              border: '1px solid rgba(234, 88, 12, 0.2)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              <span>⚠️ Local Sandbox Mode</span>
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(22, 163, 74, 0.12)',
+              color: 'var(--primary)',
+              border: '1px solid rgba(22, 163, 74, 0.2)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
+              <span>PostgreSQL Connected</span>
+            </div>
+          )}
+
+        </header>
+
+        {/* Content Body Router */}
+        <div className="content-body">
+          {currentTab === 'dashboard' && (
+            <Dashboard 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={courses}
+              quizzes={quizzes}
+              assignments={assignments}
+              submissions={submissions}
+              setCurrentTab={setCurrentTab}
+              setSelectedCourseId={setSelectedCourseId}
+            />
+          )}
+
+          {currentTab === 'groups' && (
+            <GroupManager 
+              currentRole={activeUser.id}
+              users={users}
+              courses={visibleCourses}
+              groups={groups}
+              onAddGroup={handleAddGroup}
+              onUpdateGroup={handleUpdateGroup}
+              onDeleteGroup={handleDeleteGroup}
+            />
+          )}
+
+          {currentTab === 'quizzes' && (
+            isLecturer ? (
+              <QuizManager 
+                courses={visibleCourses}
+                quizzes={quizzes}
+                submissions={submissions}
+                users={enrichedUsers}
+                onAddQuiz={handleAddQuiz}
+              />
+            ) : (
+              <QuizTaker 
+                quizzes={quizzes}
+                submissions={submissions}
+                courses={courses}
+                currentStudentId={activeUserEnriched.id}
+                onSubmitQuiz={handleSubmitQuiz}
+              />
+            )
+          )}
+
+          {currentTab === 'assignments' && (
+            isLecturer ? (
+              <AssignmentManager 
+                courses={visibleCourses}
+                assignments={assignments}
+                submissions={submissions}
+                users={enrichedUsers}
+                onAddAssignment={handleAddAssignment}
+                onGradeSubmission={handleGradeSubmission}
+              />
+            ) : (
+              <AssignmentSubmitter 
+                assignments={assignments}
+                submissions={submissions}
+                courses={courses}
+                users={enrichedUsers}
+                currentStudentId={activeUserEnriched.id}
+                onSubmitAssignment={handleSubmitAssignment}
+              />
+            )
+          )}
+
+          {currentTab === 'gradebook' && (
+            <Gradebook 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              courses={visibleCourses}
+              quizzes={quizzes}
+              assignments={assignments}
+              submissions={submissions}
+            />
+          )}
+
+          {currentTab === 'my_courses' && isLecturer && (
+            <LecturerCourseManager 
+              currentLecturerId={activeUser.id}
+              courses={courses}
+              onAddCourse={handleAddCourse}
+              onDeleteCourse={handleDeleteCourse}
+            />
+          )}
+
+          {currentTab === 'roster' && isLecturer && (
+            <ClassRosterManager 
+              users={users} 
+              onImportStudents={handleImportStudents} 
+            />
+          )}
+        </div>
+      </main>
+
+      {/* Floating Status Toast Notifications */}
+      {toast && (
+        <div className="toast-msg">
+          <CheckCircle size={18} />
+          <span>{toast}</span>
+        </div>
+      )}
+    </div>
+  );
+}

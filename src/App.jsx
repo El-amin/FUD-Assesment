@@ -538,9 +538,10 @@ export default function App() {
 
   // 4. Submit Assignment (Student)
   const handleSubmitAssignment = async (assignId, isGroup, groupId, groupName, file, notes, fileObject) => {
+    const isGroupSubmissionBool = !!isGroup;
     const existingIndex = submissions.findIndex(s => 
       s.taskId === assignId && 
-      (isGroup ? (s.isGroupSubmission && s.groupId === groupId) : (s.studentId === activeUser.id))
+      (isGroupSubmissionBool ? ((s.isGroupSubmission || s.is_group_submission) && s.groupId === groupId) : (s.studentId === activeUser.id))
     );
 
     const subId = existingIndex >= 0 ? submissions[existingIndex].id : 'sub_' + Date.now().toString();
@@ -552,9 +553,9 @@ export default function App() {
         task_id: assignId,
         student_id: activeUser.id,
         type: 'assignment',
-        is_group_submission: isGroup,
-        group_id: isGroup ? groupId : null,
-        group_name: isGroup ? groupName : null,
+        is_group_submission: isGroupSubmissionBool,
+        group_id: isGroupSubmissionBool ? groupId : null,
+        group_name: isGroupSubmissionBool ? groupName : null,
         attachment_name: file,
         submission_text: notes,
         submitted_at: subAt
@@ -604,12 +605,12 @@ export default function App() {
       taskId: assignId,
       studentId: activeUser.id,
       type: 'assignment',
-      isGroupSubmission: isGroup,
-      groupId: isGroup ? groupId : null,
-      groupName: isGroup ? groupName : null,
+      isGroupSubmission: isGroupSubmissionBool,
+      groupId: isGroupSubmissionBool ? groupId : null,
+      groupName: isGroupSubmissionBool ? groupName : null,
       attachmentName: file,
       submissionText: notes,
-      maxScore: assignments.find(a => a.id === assignId)?.maxScore || 100,
+      maxScore: assignments.find(a => a.id === assignId)?.maxScore || assignments.find(a => a.id === assignId)?.max_score || 100,
       score: existingIndex >= 0 ? submissions[existingIndex].score : null,
       feedback: existingIndex >= 0 ? submissions[existingIndex].feedback : null,
       submittedAt: subAt

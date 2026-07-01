@@ -19,21 +19,22 @@ export default function AssignmentSubmitter({
 
   // Retrieve submission details if already made
   const getSubmissionStatus = (assign) => {
+    const isGroup = assign.isGroup || assign.is_group;
     // If it is a group assignment, check if anyone from the same group submitted
-    if (assign.isGroup) {
+    if (isGroup) {
       if (!studentGroupId) {
         return { submitted: false, noGroup: true };
       }
-      const groupSub = submissions.find(s => s.taskId === assign.id && s.isGroupSubmission && s.groupId === studentGroupId);
+      const groupSub = submissions.find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === studentGroupId);
       if (groupSub) {
-        const submitter = users.find(u => u.id === groupSub.studentId);
+        const submitter = users.find(u => u.id === groupSub.studentId || u.id === groupSub.student_id);
         return { 
           submitted: true, 
           score: groupSub.score, 
           feedback: groupSub.feedback,
-          attachmentName: groupSub.attachmentName,
-          submissionText: groupSub.submissionText,
-          submittedAt: groupSub.submittedAt,
+          attachmentName: groupSub.attachmentName || groupSub.attachment_name,
+          submissionText: groupSub.submissionText || groupSub.submission_text,
+          submittedAt: groupSub.submittedAt || groupSub.submitted_at,
           submitterName: submitter ? submitter.name : 'Group Member'
         };
       }
@@ -41,15 +42,15 @@ export default function AssignmentSubmitter({
     }
 
     // Individual assignment check
-    const indSub = submissions.find(s => s.taskId === assign.id && s.studentId === currentStudentId && s.type === 'assignment');
+    const indSub = submissions.find(s => s.taskId === assign.id && (s.studentId === currentStudentId || s.student_id === currentStudentId) && s.type === 'assignment');
     if (indSub) {
       return { 
         submitted: true, 
         score: indSub.score, 
         feedback: indSub.feedback,
-        attachmentName: indSub.attachmentName,
-        submissionText: indSub.submissionText,
-        submittedAt: indSub.submittedAt,
+        attachmentName: indSub.attachmentName || indSub.attachment_name,
+        submissionText: indSub.submissionText || indSub.submission_text,
+        submittedAt: indSub.submittedAt || indSub.submitted_at,
         submitterName: 'You'
       };
     }
@@ -105,18 +106,19 @@ export default function AssignmentSubmitter({
       {/* Grid of Student Assignments */}
       <div className="grid-container" style={{ marginTop: '24px' }}>
         {assignments.map(assign => {
-          const course = courses.find(c => c.id === assign.courseId);
+          const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
           const status = getSubmissionStatus(assign);
           const isGraded = status.submitted && status.score !== undefined && status.score !== null;
+          const isGroupAssign = assign.isGroup || assign.is_group;
 
           return (
             <div key={assign.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <span className="badge badge-primary">{course ? course.code : 'General'}</span>
-                  <span className={`badge ${assign.isGroup ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {assign.isGroup ? <Users size={12} /> : <FileText size={12} />}
-                    {assign.isGroup ? 'Group Project' : 'Individual'}
+                  <span className={`badge ${isGroupAssign ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {isGroupAssign ? <Users size={12} /> : <FileText size={12} />}
+                    {isGroupAssign ? 'Group Project' : 'Individual'}
                   </span>
                 </div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px' }}>{assign.title}</h3>
@@ -124,8 +126,8 @@ export default function AssignmentSubmitter({
                   {assign.description || 'Instructions uploaded by Dr. Bello.'}
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span>Deadline: <strong>{assign.dueDate}</strong></span>
-                  <span>Max Points: <strong>{assign.maxScore}</strong></span>
+                  <span>Deadline: <strong>{assign.dueDate || assign.due_date}</strong></span>
+                  <span>Max Points: <strong>{assign.maxScore || assign.max_score}</strong></span>
                 </div>
               </div>
 
@@ -207,9 +209,9 @@ export default function AssignmentSubmitter({
       {submittingAssignment && (
         <div className="modal-overlay" onClick={() => setSubmittingAssignment(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+             <div className="modal-header">
               <div>
-                <span className="badge badge-primary">{courses.find(c => c.id === submittingAssignment.courseId)?.code}</span>
+                <span className="badge badge-primary">{courses.find(c => c.id === submittingAssignment.courseId || c.id === submittingAssignment.course_id)?.code}</span>
                 <h3 style={{ fontSize: '1.2rem', marginTop: '4px' }}>Submit: {submittingAssignment.title}</h3>
               </div>
               <button className="modal-close" onClick={() => setSubmittingAssignment(null)}>
@@ -217,7 +219,7 @@ export default function AssignmentSubmitter({
               </button>
             </div>
 
-            {submittingAssignment.isGroup && (
+            {(submittingAssignment.isGroup || submittingAssignment.is_group) && (
               <div style={{ 
                 display: 'flex', 
                 gap: '8px', 

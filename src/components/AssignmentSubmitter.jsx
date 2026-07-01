@@ -11,7 +11,8 @@ export default function AssignmentSubmitter({
 }) {
   const [submittingAssignment, setSubmittingAssignment] = useState(null);
   const [submissionText, setSubmissionText] = useState('');
-  const [attachmentName, setAttachmentName] = useState('Assignment_Solution_Draft.pdf');
+  const [attachmentName, setAttachmentName] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const student = users.find(u => u.id === currentStudentId) || users[0];
   const studentGroupId = student.groupId;
@@ -59,11 +60,17 @@ export default function AssignmentSubmitter({
   const handleOpenSubmit = (assign) => {
     setSubmittingAssignment(assign);
     setSubmissionText('');
-    setAttachmentName(`${assign.title.replace(/\s+/g, '_')}_Submission.pdf`);
+    setAttachmentName('');
+    setSelectedFile(null);
   };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
+
+    if (!attachmentName) {
+      alert('Please select a file to submit.');
+      return;
+    }
 
     onSubmitAssignment(
       submittingAssignment.id, 
@@ -71,7 +78,8 @@ export default function AssignmentSubmitter({
       studentGroupId,
       student.groupName,
       attachmentName,
-      submissionText
+      submissionText,
+      selectedFile
     );
 
     setSubmittingAssignment(null);
@@ -230,24 +238,51 @@ export default function AssignmentSubmitter({
 
             <form onSubmit={handleFormSubmit}>
               <div className="form-group">
-                <label className="form-label">Simulate File Upload</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select 
-                    className="form-select" 
-                    value={attachmentName}
-                    onChange={e => setAttachmentName(e.target.value)}
-                    style={{ flexGrow: 1 }}
+                <label className="form-label">Upload File Attachment</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{
+                    border: '2px dashed var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '24px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-app)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'border-color var(--transition-fast)'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                   >
-                    {mockFileOptions.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                    <option value={`${submittingAssignment.title.replace(/\s+/g, '_')}_FinalSubmission.zip`}>
-                      {submittingAssignment.title.replace(/\s+/g, '_')}_FinalSubmission.zip
-                    </option>
-                  </select>
-                  <button type="button" className="btn btn-outline" style={{ pointerEvents: 'none' }}>
-                    <Upload size={18} />
-                  </button>
+                    <input 
+                      type="file"
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setSelectedFile(file);
+                          setAttachmentName(file.name);
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        opacity: 0,
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'pointer'
+                      }}
+                      required
+                    />
+                    <Upload size={24} style={{ color: 'var(--text-muted)', marginBottom: '8px', marginLeft: 'auto', marginRight: 'auto', display: 'block' }} />
+                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-title)' }}>
+                      {selectedFile ? selectedFile.name : 'Click to select or drag your file here'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      {selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'Supports PDF, ZIP, DOCX, PNG, etc. up to 25MB'}
+                    </div>
+                  </div>
                 </div>
               </div>
 

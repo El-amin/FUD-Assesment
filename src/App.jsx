@@ -494,7 +494,7 @@ export default function App() {
   };
 
   // 4. Submit Assignment (Student)
-  const handleSubmitAssignment = async (assignId, isGroup, groupId, groupName, file, notes) => {
+  const handleSubmitAssignment = async (assignId, isGroup, groupId, groupName, file, notes, fileObject) => {
     const existingIndex = submissions.findIndex(s => 
       s.taskId === assignId && 
       (isGroup ? (s.isGroupSubmission && s.groupId === groupId) : (s.studentId === activeUser.id))
@@ -535,6 +535,23 @@ export default function App() {
         if (error) {
           alert("Supabase Insert Error: " + error.message);
           return;
+        }
+      }
+
+      // Upload file to Supabase storage bucket 'submissions' if fileObject is present
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `${subId}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          
+          if (uploadError) {
+            console.warn("Supabase Storage Upload: " + uploadError.message + ". Database record created, but verify a public bucket named 'submissions' exists in Supabase Storage settings.");
+          }
+        } catch (err) {
+          console.warn("Supabase Storage Upload Exception:", err);
         }
       }
     }

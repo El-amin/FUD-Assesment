@@ -17,11 +17,13 @@ import {
   FileCode,
   Folder,
   Layers,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 // --- MOCK INTERACTIVE DOCUMENT PREVIEW COMPONENT ---
-function DocPreview({ fileName, submission, studentName }) {
+function DocPreviewInner({ fileName, submission, studentName }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [activeZipFile, setActiveZipFile] = useState('README.md');
 
@@ -359,6 +361,65 @@ header {
       <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem', fontStyle: 'italic' }}>
         "{submission.submissionText || 'No comments uploaded with file.'}"
       </div>
+    </div>
+  );
+}
+
+function DocPreview({ fileName, submission, studentName }) {
+  const fileExt = fileName.split('.').pop().toLowerCase();
+  
+  // Try retrieving the public Supabase URL for direct download
+  const getStorageUrl = () => {
+    if (!isSupabaseConfigured) return null;
+    const path = `${submission.id}.${fileExt}`;
+    const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+    return data?.publicUrl;
+  };
+
+  const publicUrl = getStorageUrl();
+
+  const downloadButton = publicUrl ? (
+    <a 
+      href={publicUrl} 
+      target="_blank" 
+      rel="noopener noreferrer" 
+      className="btn btn-primary btn-sm"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', height: '32px' }}
+      download={fileName}
+    >
+      <Upload size={14} style={{ transform: 'rotate(180deg)' }} />
+      Download File
+    </a>
+  ) : (
+    <button 
+      onClick={() => alert("Direct file download is only available in Supabase connected mode. In local sandbox mode, you can inspect simulated file previews.")}
+      className="btn btn-outline btn-sm"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '32px', color: 'var(--text-main)', borderColor: 'var(--border)' }}
+    >
+      Mock Download
+    </button>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Universal Action Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        padding: '12px 16px', 
+        backgroundColor: 'var(--bg-app)', 
+        border: '1px solid var(--border)', 
+        borderRadius: 'var(--radius-md)' 
+      }}>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-title)' }}>
+          📄 Original File Attachment: <strong>{fileName}</strong>
+        </div>
+        {downloadButton}
+      </div>
+      
+      {/* Preview container */}
+      <DocPreviewInner fileName={fileName} submission={submission} studentName={studentName} />
     </div>
   );
 }

@@ -187,49 +187,9 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
           
           <div>
             {/* Header Title */}
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-title)' }}>Portal Authentication</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Secure access to academic grading resources</p>
-              </div>
-
-              {/* Real-time Connection Status Indicator */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: !isSupabaseConfigured
-                  ? 'rgba(234, 88, 12, 0.1)'
-                  : dbError
-                    ? 'rgba(220, 38, 38, 0.1)'
-                    : 'rgba(22, 163, 74, 0.1)',
-                color: !isSupabaseConfigured
-                  ? 'var(--color-warning)'
-                  : dbError
-                    ? 'var(--color-danger)'
-                    : 'var(--primary)',
-                border: !isSupabaseConfigured
-                  ? '1px solid rgba(234, 88, 12, 0.2)'
-                  : dbError
-                    ? '1px solid rgba(220, 38, 38, 0.2)'
-                    : '1px solid rgba(22, 163, 74, 0.2)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.75rem',
-                fontWeight: '700',
-                whiteSpace: 'nowrap'
-              }}>
-                {!isSupabaseConfigured ? (
-                  <span>⚠️ Sandbox Mode</span>
-                ) : dbError ? (
-                  <span>🔴 DB Connect Error</span>
-                ) : (
-                  <>
-                    <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-                    <span>PostgreSQL Connected</span>
-                  </>
-                )}
-              </div>
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-title)' }}>Portal Authentication</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Secure access to academic grading resources</p>
             </div>
 
             {/* DB Error Instruction Alert Banner */}

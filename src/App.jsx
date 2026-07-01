@@ -1111,41 +1111,6 @@ export default function App() {
               {currentTab === 'groups' ? (isLecturer ? 'Group Roster' : 'My Group Circle') : currentTab}
             </h1>
           </div>
-
-          {/* Database Connection Status Banner */}
-          {!isSupabaseConfigured ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(234, 88, 12, 0.12)',
-              color: 'var(--color-warning)',
-              border: '1px solid rgba(234, 88, 12, 0.2)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8rem',
-              fontWeight: '600'
-            }}>
-              <span>⚠️ Local Sandbox Mode</span>
-            </div>
-          ) : (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(22, 163, 74, 0.12)',
-              color: 'var(--primary)',
-              border: '1px solid rgba(22, 163, 74, 0.2)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8rem',
-              fontWeight: '600'
-            }}>
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-              <span>PostgreSQL Connected</span>
-            </div>
-          )}
-
         </header>
 
         {/* Content Body Router */}

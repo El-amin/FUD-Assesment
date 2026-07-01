@@ -430,10 +430,12 @@ export default function AssignmentManager({
   submissions, 
   users, 
   onAddAssignment, 
+  onUpdateAssignment,
   onGradeSubmission 
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAssignmentForReview, setSelectedAssignmentForReview] = useState(null);
+  const [editingAssignment, setEditingAssignment] = useState(null);
   
   // Workspace Active Submissions (Null if none selected for preview/grading)
   const [activeSubmission, setActiveSubmission] = useState(null);
@@ -451,6 +453,41 @@ export default function AssignmentManager({
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
 
+  const handleOpenCreateModal = () => {
+    setEditingAssignment(null);
+    setCourseId(courses[0]?.id || '');
+    setTitle('');
+    setDescription('');
+    setMaxScore(100);
+    setDueDate('');
+    setIsGroup(false);
+    setErrors({});
+    setShowCreateModal(true);
+  };
+
+  const handleOpenEditModal = (assign) => {
+    setEditingAssignment(assign);
+    setCourseId(assign.courseId);
+    setTitle(assign.title);
+    setDescription(assign.description || '');
+    setMaxScore(assign.maxScore);
+    setDueDate(assign.dueDate);
+    setIsGroup(assign.isGroup);
+    setErrors({});
+    setShowCreateModal(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setTitle('');
+    setDescription('');
+    setMaxScore(100);
+    setDueDate('');
+    setIsGroup(false);
+    setEditingAssignment(null);
+    setErrors({});
+    setShowCreateModal(false);
+  };
+
   const handleSaveAssignment = (e) => {
     e.preventDefault();
 
@@ -465,17 +502,29 @@ export default function AssignmentManager({
       return;
     }
 
-    const newAssignment = {
-      id: 'assign_' + Date.now().toString(),
-      courseId,
-      title,
-      description,
-      maxScore: parseInt(maxScore),
-      dueDate,
-      isGroup
-    };
-
-    onAddAssignment(newAssignment);
+    if (editingAssignment) {
+      const updatedAssignment = {
+        ...editingAssignment,
+        courseId,
+        title,
+        description,
+        maxScore: parseInt(maxScore),
+        dueDate,
+        isGroup
+      };
+      onUpdateAssignment(updatedAssignment);
+    } else {
+      const newAssignment = {
+        id: 'assign_' + Date.now().toString(),
+        courseId,
+        title,
+        description,
+        maxScore: parseInt(maxScore),
+        dueDate,
+        isGroup
+      };
+      onAddAssignment(newAssignment);
+    }
 
     // Reset Form
     setTitle('');
@@ -483,6 +532,7 @@ export default function AssignmentManager({
     setMaxScore(100);
     setDueDate('');
     setIsGroup(false);
+    setEditingAssignment(null);
     setErrors({});
     setShowCreateModal(false);
   };
@@ -533,7 +583,7 @@ export default function AssignmentManager({
             Publish homework, group projects, preview submissions online, and record marks.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+        <button className="btn btn-primary" onClick={handleOpenCreateModal}>
           <PlusCircle size={18} />
           Publish New Assignment
         </button>
@@ -572,13 +622,23 @@ export default function AssignmentManager({
                   <span>Pending: <strong style={{ color: pendingCount > 0 ? 'var(--color-warning)' : 'inherit' }}>{pendingCount}</strong></span>
                   <span>Graded: <strong>{gradedCount}</strong></span>
                 </div>
-                <button 
-                  className="btn btn-outline btn-sm" 
-                  style={{ width: '100%' }}
-                  onClick={() => handleOpenReviewPanel(assign)}
-                >
-                  Grade & Preview ({assignSubmissions.length})
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className="btn btn-outline btn-sm" 
+                    style={{ flexGrow: 1 }}
+                    onClick={() => handleOpenReviewPanel(assign)}
+                  >
+                    Grade & Preview ({assignSubmissions.length})
+                  </button>
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    onClick={() => handleOpenEditModal(assign)}
+                    style={{ flexShrink: 0, color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                    title="Edit Assignment Details"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -805,11 +865,11 @@ export default function AssignmentManager({
 
       {/* Create Assignment Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseCreateModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '1.3rem' }}>Publish Assignment Sheet</h3>
-              <button className="modal-close" onClick={() => setShowCreateModal(false)}>
+              <h3 style={{ fontSize: '1.3rem' }}>{editingAssignment ? 'Edit Assignment Sheet' : 'Publish Assignment Sheet'}</h3>
+              <button className="modal-close" onClick={handleCloseCreateModal}>
                 <X size={20} />
               </button>
             </div>
@@ -891,11 +951,11 @@ export default function AssignmentManager({
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowCreateModal(false)}>
+                <button type="button" className="btn btn-outline" onClick={handleCloseCreateModal}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Publish Assignment
+                  {editingAssignment ? 'Save Changes' : 'Publish Assignment'}
                 </button>
               </div>
             </form>

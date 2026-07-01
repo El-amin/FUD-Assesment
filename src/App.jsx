@@ -266,12 +266,33 @@ export default function App() {
         // Fetch quizzes
         const { data: quizzesData, error: quizzesError } = await supabase.from('quizzes').select('*');
         if (quizzesError) throw quizzesError;
-        if (quizzesData) setQuizzes(quizzesData);
+        if (quizzesData) {
+          const mapped = quizzesData.map(q => ({
+            id: q.id,
+            courseId: q.course_id,
+            title: q.title,
+            questions: q.questions,
+            dueDate: q.due_date,
+            maxScore: q.max_score
+          }));
+          setQuizzes(mapped);
+        }
 
         // Fetch assignments
         const { data: assignmentsData, error: assignmentsError } = await supabase.from('assignments').select('*');
         if (assignmentsError) throw assignmentsError;
-        if (assignmentsData) setAssignments(assignmentsData);
+        if (assignmentsData) {
+          const mapped = assignmentsData.map(a => ({
+            id: a.id,
+            courseId: a.course_id,
+            title: a.title,
+            description: a.description,
+            maxScore: a.max_score,
+            dueDate: a.due_date,
+            isGroup: a.is_group
+          }));
+          setAssignments(mapped);
+        }
 
         // Fetch submissions and map to camelCase structure
         const { data: submissionsData, error: submissionsError } = await supabase.from('submissions').select('*');
@@ -456,6 +477,28 @@ export default function App() {
     }
     setAssignments([...assignments, newAssign]);
     triggerToast(`Assignment "${newAssign.title}" published successfully!`);
+  };
+
+  const handleUpdateAssignment = async (updatedAssign) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('assignments')
+        .update({
+          course_id: updatedAssign.courseId,
+          title: updatedAssign.title,
+          description: updatedAssign.description,
+          max_score: updatedAssign.maxScore,
+          due_date: updatedAssign.dueDate,
+          is_group: updatedAssign.isGroup
+        })
+        .eq('id', updatedAssign.id);
+      if (error) {
+        alert("Supabase SQL Update Error: " + error.message);
+        return;
+      }
+    }
+    setAssignments(assignments.map(a => a.id === updatedAssign.id ? updatedAssign : a));
+    triggerToast(`Assignment "${updatedAssign.title}" updated successfully!`);
   };
 
   // 3. Submit Quiz (Student)
@@ -1473,6 +1516,7 @@ export default function App() {
                 submissions={submissions}
                 users={enrichedUsers}
                 onAddAssignment={handleAddAssignment}
+                onUpdateAssignment={handleUpdateAssignment}
                 onGradeSubmission={handleGradeSubmission}
               />
             ) : (

@@ -6,7 +6,9 @@ export default function QuizManager({
   quizzes, 
   submissions, 
   users, 
-  onAddQuiz 
+  onAddQuiz,
+  onReleaseQuizScore,
+  onReleaseAllQuizScores
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedQuizForStats, setSelectedQuizForStats] = useState(null);
@@ -224,7 +226,18 @@ export default function QuizManager({
               </div>
 
               {/* Student Log Table */}
-              <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '10px' }}>Student Log</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', margin: 0 }}>Student Log</h4>
+                {stats.list.some(sub => !(sub.isReleased || sub.is_released)) && (
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    onClick={() => onReleaseAllQuizScores(selectedQuizForStats.id)}
+                    style={{ fontSize: '0.75rem', height: '32px' }}
+                  >
+                    Release All Scores
+                  </button>
+                )}
+              </div>
               <div className="grade-table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 <table className="grade-table">
                   <thead>
@@ -234,12 +247,14 @@ export default function QuizManager({
                       <th>Date Completed</th>
                       <th>Correct / Total</th>
                       <th>Percentage Score</th>
+                      <th>Score Release</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.list.map(sub => {
                       const student = users.find(u => u.id === sub.studentId);
                       const correctCount = Math.round((sub.score / 100) * selectedQuizForStats.questions.length);
+                      const isScoreReleased = sub.isReleased || sub.is_released;
                       return (
                         <tr key={sub.id}>
                           <td style={{ fontWeight: '600' }}>{sub.studentName}</td>
@@ -247,13 +262,26 @@ export default function QuizManager({
                           <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sub.submittedAt || 'Today'}</td>
                           <td style={{ fontWeight: '700' }}>{correctCount} / {selectedQuizForStats.questions.length}</td>
                           <td style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{sub.score}%</td>
+                          <td>
+                            {isScoreReleased ? (
+                              <span className="badge badge-success" style={{ fontSize: '0.7rem', padding: '2px 8px', display: 'inline-block' }}>Released</span>
+                            ) : (
+                              <button 
+                                className="btn btn-outline btn-sm"
+                                onClick={() => onReleaseQuizScore(sub.id)}
+                                style={{ fontSize: '0.7rem', padding: '2px 8px', height: '24px', lineHeight: '20px' }}
+                              >
+                                Release Score
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
 
                     {stats.list.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                        <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
                           No student has completed this quiz yet.
                         </td>
                       </tr>

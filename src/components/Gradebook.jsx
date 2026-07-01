@@ -27,14 +27,15 @@ export default function Gradebook({
     // Evaluate Quizzes (Actual score out of 100 max points)
     courseQuizzes.forEach(quiz => {
       const sub = submissions.find(s => s.taskId === quiz.id && s.studentId === studentId && s.type === 'quiz');
+      const isReleased = sub ? (sub.isReleased || sub.is_released) : false;
       gradesList.push({
         id: quiz.id,
         title: quiz.title,
         type: 'Quiz',
         maxScore: 100,
-        score: sub ? sub.score : null,
-        status: sub ? 'Graded' : 'Not Taken',
-        feedback: sub ? 'Auto-graded upon submission' : 'Pending completion'
+        score: sub ? (isReleased ? sub.score : 'Pending Release') : null,
+        status: sub ? (isReleased ? 'Graded' : 'Submitted (Awaiting Release)') : 'Not Taken',
+        feedback: sub ? (isReleased ? 'Auto-graded upon submission' : 'Score withheld awaiting lecturer review') : 'Pending completion'
       });
     });
 
@@ -144,7 +145,7 @@ export default function Gradebook({
               </thead>
               <tbody>
                 {gradesList.map(item => {
-                  const percentVal = item.score !== null ? Math.round((item.score / item.maxScore) * 100) : null;
+                  const percentVal = typeof item.score === 'number' ? Math.round((item.score / item.maxScore) * 100) : null;
                   return (
                     <tr key={item.id}>
                       <td style={{ fontWeight: '700' }}>{item.title}</td>
@@ -152,7 +153,7 @@ export default function Gradebook({
                         <span className="badge badge-gray">{item.type}</span>
                       </td>
                       <td style={{ fontWeight: '700' }}>
-                        {item.score !== null ? `${item.score} / ${item.maxScore}` : '-'}
+                        {typeof item.score === 'number' ? `${item.score} / ${item.maxScore}` : (item.score || '-')}
                       </td>
                       <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
                         {percentVal !== null ? `${percentVal}%` : '-'}

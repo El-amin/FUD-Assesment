@@ -89,6 +89,7 @@ CREATE TABLE submissions (
     submission_text TEXT,
     score INT,
     feedback TEXT,
+    is_released BOOLEAN NOT NULL DEFAULT FALSE,
     submitted_at VARCHAR(30) NOT NULL
 );
 

@@ -310,6 +310,8 @@ export default function App() {
             submissionText: s.submission_text,
             score: s.score,
             feedback: s.feedback,
+            isReleased: s.is_released,
+            is_released: s.is_released,
             submittedAt: s.submitted_at
           }));
           setSubmissions(mapped);
@@ -513,6 +515,7 @@ export default function App() {
         student_id: activeUser.id,
         type: 'quiz',
         is_group_submission: false,
+        is_released: false,
         score: scorePercent,
         submitted_at: subAt
       }]);
@@ -527,13 +530,47 @@ export default function App() {
       taskId: quizId,
       studentId: activeUser.id,
       type: 'quiz',
+      isGroupSubmission: false,
+      isReleased: false,
+      is_released: false,
       score: scorePercent,
       maxScore: 100,
       submittedAt: subAt
     };
 
     setSubmissions([...submissions, localSub]);
-    triggerToast(`Quiz submitted! Result: ${scorePercent}%`);
+    triggerToast(`Quiz submitted successfully!`);
+  };
+
+  const handleReleaseQuizScore = async (subId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ is_released: true })
+        .eq('id', subId);
+      if (error) {
+        alert("Supabase Update Error: " + error.message);
+        return;
+      }
+    }
+    setSubmissions(submissions.map(s => s.id === subId ? { ...s, isReleased: true, is_released: true } : s));
+    triggerToast("Quiz score released successfully!");
+  };
+
+  const handleReleaseAllQuizScores = async (quizId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ is_released: true })
+        .eq('task_id', quizId)
+        .eq('type', 'quiz');
+      if (error) {
+        alert("Supabase Update Error: " + error.message);
+        return;
+      }
+    }
+    setSubmissions(submissions.map(s => (s.taskId === quizId && s.type === 'quiz') ? { ...s, isReleased: true, is_released: true } : s));
+    triggerToast("All quiz scores released successfully!");
   };
 
   // 4. Submit Assignment (Student)
@@ -1497,6 +1534,8 @@ export default function App() {
                 submissions={submissions}
                 users={enrichedUsers}
                 onAddQuiz={handleAddQuiz}
+                onReleaseQuizScore={handleReleaseQuizScore}
+                onReleaseAllQuizScores={handleReleaseAllQuizScores}
               />
             ) : (
               <QuizTaker 

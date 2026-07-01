@@ -17,11 +17,26 @@ export default function QuizTaker({
   const [lastSubmissionDetails, setLastSubmissionDetails] = useState(null);
 
   const timerRef = useRef(null);
+  const answersRef = useRef(answers);
+  const activeQuizRef = useRef(activeQuiz);
+  const quizFinishedRef = useRef(quizFinished);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    activeQuizRef.current = activeQuiz;
+  }, [activeQuiz]);
+
+  useEffect(() => {
+    quizFinishedRef.current = quizFinished;
+  }, [quizFinished]);
 
   // Filter quizzes that have already been taken by this student
   const getQuizStatus = (quizId) => {
     const sub = submissions.find(s => s.taskId === quizId && s.studentId === currentStudentId && s.type === 'quiz');
-    return sub ? { taken: true, score: sub.score } : { taken: false };
+    return sub ? { taken: true, score: sub.score, isReleased: sub.isReleased || sub.is_released } : { taken: false };
   };
 
   // Start the quiz
@@ -34,7 +49,7 @@ export default function QuizTaker({
     setGradedScore(null);
   };
 
-  // Timer Effect
+  // Timer & Anti-Cheating Effect
   useEffect(() => {
     if (activeQuiz && !quizFinished) {
       timerRef.current = setInterval(() => {
@@ -49,8 +64,18 @@ export default function QuizTaker({
       }, 1000);
     }
 
+    const handleVisibilityChange = () => {
+      if (document.hidden && activeQuizRef.current && !quizFinishedRef.current) {
+        alert("Anti-Cheating Violation: Tab switching or browser minimization is prohibited during quizzes. Your quiz is being auto-submitted immediately.");
+        submitQuizAnswers(true, answersRef.current);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [activeQuiz, quizFinished]);
 
@@ -76,15 +101,16 @@ export default function QuizTaker({
   };
 
   // Core submission evaluation
-  const submitQuizAnswers = (isAutoSubmit) => {
+  const submitQuizAnswers = (isAutoSubmit, answersOverride) => {
     if (timerRef.current) clearInterval(timerRef.current);
 
+    const currentAnswers = answersOverride || answers;
     let correctCount = 0;
     const questions = activeQuiz.questions;
     
     // Grade the questions
     const questionReview = questions.map(q => {
-      const studentAnsIdx = answers[q.id];
+      const studentAnsIdx = currentAnswers[q.id];
       const isCorrect = studentAnsIdx !== undefined && parseInt(studentAnsIdx) === q.correctOptionIndex;
       if (isCorrect) correctCount++;
       return {
@@ -135,54 +161,26 @@ export default function QuizTaker({
         <div style={{ maxWidth: '750px', margin: '0 auto' }}>
           <div className="card" style={{ textAlign: 'center', padding: '40px', marginBottom: '24px' }}>
             <CheckCircle size={56} style={{ color: 'var(--color-success)', margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '8px' }}>Quiz Completed!</h2>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '8px' }}>Quiz Submitted!</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-              Your responses have been processed and graded.
+              Your answers have been securely recorded on the assessment server.
             </p>
 
-            {/* Score indicator */}
-            <div style={{
-              width: '130px',
-              height: '130px',
-              borderRadius: '50%',
-              border: '6px solid var(--border)',
-              borderColor: gradedScore >= 50 ? 'var(--primary)' : 'var(--color-danger)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              backgroundColor: 'var(--bg-app)'
+            <div className="card" style={{ 
+              padding: '16px 20px', 
+              backgroundColor: 'rgba(10, 92, 54, 0.04)', 
+              borderLeft: '4px solid var(--primary)', 
+              borderRadius: 'var(--radius-md)',
+              textAlign: 'left',
+              maxWidth: '500px',
+              margin: '0 auto 24px'
             }}>
-              <span style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'var(--font-title)' }}>
-                {gradedScore}%
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>
+                🔒 Grade Release Policy Enabled
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
-                Grade
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                For academic integrity, scores are hidden until reviewed and released by your course lecturer. You will see your score in your Academic Gradebook once it is officially published.
               </span>
-            </div>
-
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Review Question Summary</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left', marginBottom: '32px' }}>
-              {lastSubmissionDetails?.map((item, idx) => (
-                <div key={idx} style={{ 
-                  padding: '16px', 
-                  borderRadius: 'var(--radius-md)', 
-                  border: '1px solid var(--border)',
-                  borderLeft: `5px solid ${item.isCorrect ? 'var(--color-success)' : 'var(--color-danger)'}`,
-                  backgroundColor: 'var(--bg-app)'
-                }}>
-                  <div style={{ fontWeight: '700', marginBottom: '8px', color: 'var(--text-title)' }}>
-                    Q{idx+1}: {item.text}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
-                    <div>Your Choice: <span style={{ fontWeight: 'bold', color: item.isCorrect ? 'var(--color-success)' : 'var(--color-danger)' }}>{item.studentAnswer}</span></div>
-                    {!item.isCorrect && (
-                      <div>Correct Answer: <span style={{ fontWeight: 'bold', color: 'var(--color-success)' }}>{item.correctAnswer}</span></div>
-                    )}
-                  </div>
-                </div>
-              ))}
             </div>
 
             <button className="btn btn-primary" onClick={() => setActiveQuiz(null)}>
@@ -347,7 +345,11 @@ export default function QuizTaker({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <CheckCircle size={18} style={{ color: 'var(--color-success)' }} />
                     <span style={{ fontSize: '0.9rem', fontWeight: '700' }}>
-                      Score: <span style={{ color: 'var(--primary)' }}>{status.score}%</span>
+                      {status.isReleased ? (
+                        <>Score: <span style={{ color: 'var(--primary)' }}>{status.score}%</span></>
+                      ) : (
+                        <span style={{ color: 'var(--color-warning)', fontSize: '0.8rem' }}>Grade Pending Release</span>
+                      )}
                     </span>
                   </div>
                 ) : (

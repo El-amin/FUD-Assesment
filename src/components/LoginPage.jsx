@@ -125,30 +125,10 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
       }} />
 
       {/* Main Login Card */}
-      <div className="card" style={{
-        maxWidth: '900px',
-        width: '100%',
-        padding: 0,
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.1fr',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-lg)',
-        border: '1px solid var(--border)',
-        zIndex: 1,
-        borderRadius: 'var(--radius-lg)'
-      }}>
+      <div className="card login-card">
         
         {/* Left Column: Branding banner */}
-        <div style={{
-          background: 'linear-gradient(135deg, var(--primary) 0%, #064025 100%)',
-          color: 'white',
-          padding: '40px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
+        <div className="login-banner">
           {/* Subtle watermark lines */}
           <div style={{
             position: 'absolute',
@@ -187,7 +167,7 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
           </div>
 
           {/* Middle text illustration */}
-          <div style={{ margin: '40px 0' }}>
+          <div className="login-banner-middle" style={{ margin: '40px 0' }}>
             <h2 style={{ color: 'white', fontSize: '1.8rem', fontWeight: '800', lineHeight: '1.2', marginBottom: '12px' }}>
               Academic Portal Gate
             </h2>
@@ -197,13 +177,13 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
           </div>
 
           {/* Bottom guidelines footer */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>
+          <div className="login-banner-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>
             © {new Date().getFullYear()} Federal University Dutse. All rights reserved.
           </div>
         </div>
 
         {/* Right Column: Active sign-in forms */}
-        <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div className="login-form-container">
           
           <div>
             {/* Header Title */}
@@ -281,68 +261,25 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
 
             {/* Role Switcher Tabs */}
             {!pendingUser && (
-              <div style={{
-                display: 'flex',
-                backgroundColor: 'var(--bg-app)',
-                padding: '4px',
-                borderRadius: 'var(--radius-md)',
-                marginBottom: '24px',
-                border: '1px solid var(--border)'
-              }}>
+              <div className="login-tabs">
                 <button
                   type="button"
                   onClick={() => { setActiveTab('student'); setErrorMsg(''); }}
-                  style={{
-                    flexGrow: 1,
-                    padding: '10px 0',
-                    border: 'none',
-                    background: activeTab === 'student' ? 'var(--bg-card)' : 'none',
-                    color: activeTab === 'student' ? 'var(--primary)' : 'var(--text-muted)',
-                    fontWeight: '700',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    boxShadow: activeTab === 'student' ? 'var(--shadow-sm)' : 'none',
-                    transition: 'all var(--transition-fast)'
-                  }}
+                  className={`login-tab-btn ${activeTab === 'student' ? 'active' : ''}`}
                 >
                   Student Sign In
                 </button>
                 <button
                   type="button"
                   onClick={() => { setActiveTab('lecturer'); setErrorMsg(''); }}
-                  style={{
-                    flexGrow: 1,
-                    padding: '10px 0',
-                    border: 'none',
-                    background: activeTab === 'lecturer' ? 'var(--bg-card)' : 'none',
-                    color: activeTab === 'lecturer' ? 'var(--primary)' : 'var(--text-muted)',
-                    fontWeight: '700',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    boxShadow: activeTab === 'lecturer' ? 'var(--shadow-sm)' : 'none',
-                    transition: 'all var(--transition-fast)'
-                  }}
+                  className={`login-tab-btn ${activeTab === 'lecturer' ? 'active' : ''}`}
                 >
                   Staff / Lecturer
                 </button>
                 <button
                   type="button"
                   onClick={() => { setActiveTab('admin'); setErrorMsg(''); }}
-                  style={{
-                    flexGrow: 1,
-                    padding: '10px 0',
-                    border: 'none',
-                    background: activeTab === 'admin' ? 'var(--bg-card)' : 'none',
-                    color: activeTab === 'admin' ? 'var(--primary)' : 'var(--text-muted)',
-                    fontWeight: '700',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    boxShadow: activeTab === 'admin' ? 'var(--shadow-sm)' : 'none',
-                    transition: 'all var(--transition-fast)'
-                  }}
+                  className={`login-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
                 >
                   Administrator
                 </button>

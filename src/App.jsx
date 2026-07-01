@@ -13,7 +13,8 @@ import {
   Library,
   Megaphone,
   Video,
-  MapPin
+  MapPin,
+  Menu
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import QuizManager from './components/QuizManager';
@@ -149,6 +150,7 @@ export default function App() {
   const [selectedCourseId, setSelectedCourseId] = useState(INITIAL_COURSES[0].id);
   const [toast, setToast] = useState(null);
   const [dbError, setDbError] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // --- 1. OFFLINE STORAGE SYNC EFFECTS ---
   useEffect(() => {
@@ -936,8 +938,13 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Sidebar Overlay (Mobile backdrop) */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="portal-brand">
           <div className="portal-logo">F</div>
           <div className="portal-brand-text">
@@ -951,7 +958,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('dashboard')}
+                onClick={() => { setCurrentTab('dashboard'); setSidebarOpen(false); }}
               >
                 <LayoutDashboard className="nav-icon" />
                 Dashboard
@@ -960,7 +967,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'groups' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('groups')}
+                onClick={() => { setCurrentTab('groups'); setSidebarOpen(false); }}
               >
                 <Users className="nav-icon" />
                 {isLecturer ? 'Group Circles' : 'My Group'}
@@ -970,7 +977,7 @@ export default function App() {
               <li>
                 <a 
                   className={`nav-item ${currentTab === 'my_courses' ? 'active' : ''}`}
-                  onClick={() => setCurrentTab('my_courses')}
+                  onClick={() => { setCurrentTab('my_courses'); setSidebarOpen(false); }}
                 >
                   <BookOpen className="nav-icon" />
                   My Courses
@@ -981,7 +988,7 @@ export default function App() {
               <li>
                 <a 
                   className={`nav-item ${currentTab === 'roster' ? 'active' : ''}`}
-                  onClick={() => setCurrentTab('roster')}
+                  onClick={() => { setCurrentTab('roster'); setSidebarOpen(false); }}
                 >
                   <Users className="nav-icon" />
                   Class Roster
@@ -991,7 +998,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'quizzes' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('quizzes')}
+                onClick={() => { setCurrentTab('quizzes'); setSidebarOpen(false); }}
               >
                 <Award className="nav-icon" />
                 {isLecturer ? 'Quiz Manager' : 'Quizzes'}
@@ -1000,7 +1007,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'assignments' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('assignments')}
+                onClick={() => { setCurrentTab('assignments'); setSidebarOpen(false); }}
               >
                 <FileText className="nav-icon" />
                 {isLecturer ? 'Assignment Editor' : 'Assignments'}
@@ -1009,7 +1016,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'gradebook' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('gradebook')}
+                onClick={() => { setCurrentTab('gradebook'); setSidebarOpen(false); }}
               >
                 <BookOpen className="nav-icon" />
                 {isLecturer ? 'Gradebook Roster' : 'My Grades'}
@@ -1018,7 +1025,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'materials' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('materials')}
+                onClick={() => { setCurrentTab('materials'); setSidebarOpen(false); }}
               >
                 <Library className="nav-icon" />
                 Lecture Materials
@@ -1027,7 +1034,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'forum' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('forum')}
+                onClick={() => { setCurrentTab('forum'); setSidebarOpen(false); }}
               >
                 <Megaphone className="nav-icon" />
                 Announcements Forum
@@ -1036,7 +1043,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'virtual' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('virtual')}
+                onClick={() => { setCurrentTab('virtual'); setSidebarOpen(false); }}
               >
                 <Video className="nav-icon" />
                 Virtual Class
@@ -1045,7 +1052,7 @@ export default function App() {
             <li>
               <a 
                 className={`nav-item ${currentTab === 'attendance' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('attendance')}
+                onClick={() => { setCurrentTab('attendance'); setSidebarOpen(false); }}
               >
                 <MapPin className="nav-icon" />
                 {isLecturer ? 'Attendance Logs' : 'Mark Attendance'}
@@ -1092,7 +1099,14 @@ export default function App() {
       <main className="main-wrapper">
         {/* Top Header */}
         <header className="top-header">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="sidebar-toggle" 
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Toggle Menu"
+            >
+              <Menu size={24} />
+            </button>
             <h1 className="page-title" style={{ textTransform: 'capitalize' }}>
               {currentTab === 'groups' ? (isLecturer ? 'Group Roster' : 'My Group Circle') : currentTab}
             </h1>

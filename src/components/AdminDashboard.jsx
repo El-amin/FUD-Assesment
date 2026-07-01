@@ -10,7 +10,8 @@ import {
   Search,
   Sparkles,
   Layers,
-  GraduationCap
+  GraduationCap,
+  Menu
 } from 'lucide-react';
 
 export default function AdminDashboard({ 
@@ -26,6 +27,7 @@ export default function AdminDashboard({
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Course Form State
   const [courseCode, setCourseCode] = useState('');
@@ -157,8 +159,13 @@ export default function AdminDashboard({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
+      {/* Sidebar Overlay (Mobile backdrop) */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="portal-brand">
           <div className="portal-logo" style={{ backgroundColor: 'var(--secondary)', color: 'black' }}>A</div>
           <div className="portal-brand-text">
@@ -172,7 +179,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'courses' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('courses'); setSearchQuery(''); setFormError(''); setFormSuccess(''); }}
+                onClick={() => { setActiveTab('courses'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <BookOpen className="nav-icon" />
                 Manage Courses
@@ -181,7 +188,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'lecturers' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('lecturers'); setSearchQuery(''); setFormError(''); setFormSuccess(''); }}
+                onClick={() => { setActiveTab('lecturers'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <GraduationCap className="nav-icon" />
                 Manage Lecturers
@@ -190,7 +197,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'students' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('students'); setSearchQuery(''); setFormError(''); setFormSuccess(''); }}
+                onClick={() => { setActiveTab('students'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <Users className="nav-icon" />
                 Manage Students
@@ -234,15 +241,24 @@ export default function AdminDashboard({
       </aside>
 
       {/* Main Workspace */}
-      <main className="main-wrapper" style={{ flexGrow: 1, padding: '30px' }}>
-        <header className="top-header" style={{ marginBottom: '30px' }}>
-          <div>
-            <h1 className="page-title" style={{ textTransform: 'capitalize' }}>
-              {activeTab} Management Panel
-            </h1>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Add, remove, or audit Federal University Dutse academic resources
-            </p>
+      <main className="main-wrapper" style={{ flexGrow: 1, padding: 'var(--workspace-padding, 30px)' }}>
+        <header className="top-header" style={{ marginBottom: 'var(--workspace-padding, 30px)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="sidebar-toggle" 
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Toggle Menu"
+            >
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1 className="page-title" style={{ textTransform: 'capitalize' }}>
+                {activeTab} Panel
+              </h1>
+              <p className="page-subtitle-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Add, remove, or audit Federal University Dutse academic resources
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -295,7 +311,7 @@ export default function AdminDashboard({
         )}
 
         {/* Grid layout splitting forms and tables */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px', alignItems: 'start' }}>
+        <div className="admin-grid">
           
           {/* LEFT: Add Form Panel */}
           <div className="card" style={{ padding: '24px' }}>

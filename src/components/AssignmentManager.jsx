@@ -23,10 +23,11 @@ import {
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 // --- MOCK INTERACTIVE DOCUMENT PREVIEW COMPONENT ---
-function DocPreviewInner({ fileName, submission, studentName }) {
+function DocPreviewInner({ fileName = '', submission, studentName }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [activeZipFile, setActiveZipFile] = useState('README.md');
 
+  if (!fileName) return null;
   const fileExt = fileName.split('.').pop().toLowerCase();
 
   // 1. ZIP File Code Explorer Mock
@@ -352,6 +353,67 @@ header {
     );
   }
 
+  // Image Previewer
+  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+  if (imageExts.includes(fileExt)) {
+    // Get live Supabase public URL
+    const getImageUrl = () => {
+      if (!isSupabaseConfigured) return null;
+      const path = `${submission.id}.${fileExt}`;
+      const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+      return data?.publicUrl;
+    };
+    const publicUrl = getImageUrl();
+
+    return (
+      <div style={{ 
+        border: '1px solid var(--border)', 
+        borderRadius: 'var(--radius-md)', 
+        padding: '16px', 
+        backgroundColor: 'var(--bg-app)', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        {publicUrl ? (
+          <img 
+            src={publicUrl} 
+            alt={fileName} 
+            style={{ 
+              maxWidth: '100%', 
+              maxHeight: '480px', 
+              objectFit: 'contain', 
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: 'var(--shadow-md)',
+              border: '1px solid var(--border)'
+            }} 
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'block';
+            }}
+          />
+        ) : null}
+        
+        <div style={{ 
+          display: publicUrl ? 'none' : 'block',
+          width: '100%',
+          maxWidth: '400px',
+          padding: '24px', 
+          textAlign: 'center', 
+          border: '2px dashed var(--border)', 
+          borderRadius: 'var(--radius-sm)',
+          backgroundColor: 'var(--bg-card)'
+        }}>
+          🖼️ <strong>Image File: {fileName}</strong>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+            In local sandbox mode, images are simulated. In online Supabase mode, the actual uploaded image will display here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Fallback View
   return (
     <div style={{ border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-app)' }}>
@@ -365,7 +427,16 @@ header {
   );
 }
 
-function DocPreview({ fileName, submission, studentName }) {
+function DocPreview({ fileName = '', submission, studentName }) {
+  if (!fileName) {
+    return (
+      <div style={{ padding: '24px', backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+        <FileText size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px', marginLeft: 'auto', marginRight: 'auto', display: 'block' }} />
+        <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-title)' }}>No File Attached</h4>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>This submission does not contain any file attachments.</p>
+      </div>
+    );
+  }
   const fileExt = fileName.split('.').pop().toLowerCase();
   
   // Try retrieving the public Supabase URL for direct download

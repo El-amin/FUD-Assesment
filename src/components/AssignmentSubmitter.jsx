@@ -174,12 +174,22 @@ export default function AssignmentSubmitter({
                         </div>
                       )}
                     </div>
-                    <button 
-                      className="btn btn-outline btn-sm" 
-                      onClick={() => handleOpenSubmit(assign)}
-                    >
-                      Resubmit Work
-                    </button>
+                    {!isGraded ? (
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => handleOpenSubmit(assign)}
+                      >
+                        Resubmit Work
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        disabled
+                        style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        🔒 Resubmission Locked (Graded)
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <button 

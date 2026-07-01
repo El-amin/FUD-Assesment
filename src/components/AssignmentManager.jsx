@@ -243,112 +243,145 @@ header {
     );
   }
 
-  // 3. PDF Document Mock
+  // 3. PDF Document Mock & Viewer
   if (fileExt === 'pdf') {
+    const getPdfUrl = () => {
+      if (!isSupabaseConfigured) return null;
+      const path = `${submission.id}.${fileExt}`;
+      const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+      return data?.publicUrl;
+    };
+    const publicUrl = getPdfUrl();
+
     return (
-      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '420px', overflowY: 'auto', backgroundColor: '#525659', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* PDF Top Bar Control Menu */}
-        <div style={{ backgroundColor: '#323639', padding: '8px 16px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#f1f1f1', fontSize: '0.8rem', sticky: 'top' }}>
-          <span>📄 {fileName}</span>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <span>Page 1 of 2</span>
-            <span>|</span>
-            <span>Zoom: 100%</span>
-          </div>
-        </div>
-
-        {/* PDF Page Canvas */}
-        <div style={{ backgroundColor: 'white', color: '#1e293b', padding: '40px', boxShadow: '0 4px 8px rgba(0,0,0,0.15)', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: '520px', fontSize: '0.85rem', lineHeight: '1.5' }}>
-          <div style={{ textAlign: 'center', borderBottom: '2px solid #0a5c36', paddingBottom: '12px', marginBottom: '12px' }}>
-            <h4 style={{ color: '#0a5c36', fontSize: '1.2rem', fontWeight: 'bold' }}>FUD Assessment System</h4>
-            <h5 style={{ color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase' }}>Academic Term Work Transcript</h5>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.75rem', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-            <div><strong>Task:</strong> {submission.title || 'Assignment Report'}</div>
-            <div><strong>Course:</strong> Computer Science Dept</div>
-            <div><strong>Author:</strong> {studentName}</div>
-            <div><strong>Group:</strong> {submission.groupName || 'Individual'}</div>
-          </div>
-
-          <h5 style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#0a5c36', marginTop: '10px' }}>1. Executive Summary</h5>
-          <p>
-            This document outlines our implementation plan for developing course registration databases. We focus on normalized schemas (3NF) to eliminate redundacies, optimize join times, and establish strict integrity key matches for primary keys.
-          </p>
-
-          <h5 style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#0a5c36', marginTop: '10px' }}>2. Simulated ERD Diagram</h5>
-          {/* Custom Diagram */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', backgroundColor: '#f4f7f5', borderRadius: '6px', border: '1px dashed #0a5c36', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <div style={{ border: '2px solid #0a5c36', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
-                [STUDENTS]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>MatricNo (PK)</span>
-              </div>
-              <div style={{ color: '#0a5c36', fontSize: '0.8rem' }}>──(1:N)──</div>
-              <div style={{ border: '2px solid #dfb119', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
-                [ENROLLMENT]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>EnrollID (PK)</span>
-              </div>
-              <div style={{ color: '#0a5c36', fontSize: '0.8rem' }}>──(N:1)──</div>
-              <div style={{ border: '2px solid #0a5c36', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
-                [COURSES]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>CourseID (PK)</span>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '550px', overflow: 'hidden', backgroundColor: 'var(--bg-app)' }}>
+        {publicUrl ? (
+          <iframe 
+            src={publicUrl} 
+            title={fileName} 
+            style={{ width: '100%', height: '100%', border: 'none' }} 
+          />
+        ) : (
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '420px', overflowY: 'auto', backgroundColor: '#525659', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* PDF Top Bar Control Menu */}
+            <div style={{ backgroundColor: '#323639', padding: '8px 16px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#f1f1f1', fontSize: '0.8rem', sticky: 'top' }}>
+              <span>📄 {fileName} (Local Sandbox)</span>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <span>Page 1 of 2</span>
+                <span>|</span>
+                <span>Zoom: 100%</span>
               </div>
             </div>
-            <span style={{ fontSize: '0.65rem', color: '#64748b', fontStyle: 'italic' }}>Figure 1.1: Simplified Course Registration Relational Model Schema</span>
-          </div>
 
-          <h5 style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#0a5c36', marginTop: '10px' }}>3. Project Implementation Scope</h5>
-          <p>
-            We successfully tested constraints checks inside our triggers to prevent students from enrolling in conflicting time schedules. This ensures database level consistency prior to frontend rendering.
-          </p>
-        </div>
+            {/* PDF Page Canvas */}
+            <div style={{ backgroundColor: 'white', color: '#1e293b', padding: '40px', boxShadow: '0 4px 8px rgba(0,0,0,0.15)', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: '520px', fontSize: '0.85rem', lineHeight: '1.5' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #0a5c36', paddingBottom: '12px', marginBottom: '12px' }}>
+                <h4 style={{ color: '#0a5c36', fontSize: '1.2rem', fontWeight: 'bold' }}>FUD Assessment System</h4>
+                <h5 style={{ color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase' }}>Academic Term Work Transcript</h5>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.75rem', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                <div><strong>Task:</strong> {submission.title || 'Assignment Report'}</div>
+                <div><strong>Course:</strong> Computer Science Dept</div>
+                <div><strong>Author:</strong> {studentName}</div>
+                <div><strong>Group:</strong> {submission.groupName || 'Individual'}</div>
+              </div>
+
+              <h5 style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#0a5c36', marginTop: '10px' }}>1. Executive Summary</h5>
+              <p>
+                This document outlines our implementation plan for developing course registration databases. We focus on normalized schemas (3NF) to eliminate redundancies, optimize join times, and establish strict integrity key matches for primary keys.
+              </p>
+
+              <h5 style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#0a5c36', marginTop: '10px' }}>2. Simulated ERD Diagram</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', backgroundColor: '#f4f7f5', borderRadius: '6px', border: '1px dashed #0a5c36', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                  <div style={{ border: '2px solid #0a5c36', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    [STUDENTS]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>MatricNo (PK)</span>
+                  </div>
+                  <div style={{ color: '#0a5c36', fontSize: '0.8rem' }}>──(1:N)──</div>
+                  <div style={{ border: '2px solid #dfb119', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    [ENROLLMENT]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>EnrollID (PK)</span>
+                  </div>
+                  <div style={{ color: '#0a5c36', fontSize: '0.8rem' }}>──(N:1)──</div>
+                  <div style={{ border: '2px solid #0a5c36', borderRadius: '4px', padding: '6px 12px', backgroundColor: 'white', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    [COURSES]<br/><span style={{ fontSize: '0.6rem', color: '#64748b' }}>CourseID (PK)</span>
+                  </div>
+                </div>
+                <span style={{ fontSize: '0.65rem', color: '#64748b', fontStyle: 'italic' }}>Figure 1.1: Simplified Course Registration Relational Model Schema</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // 4. DOCX Document Mock
+  // 4. DOCX Document Mock & Viewer
   if (fileExt === 'docx' || fileExt === 'doc') {
+    const getDocxUrl = () => {
+      if (!isSupabaseConfigured) return null;
+      const path = `${submission.id}.${fileExt}`;
+      const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+      return data?.publicUrl;
+    };
+    const publicUrl = getDocxUrl();
+    const officeViewerUrl = publicUrl 
+      ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(publicUrl)}`
+      : null;
+
     return (
-      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '420px', overflowY: 'auto', backgroundColor: '#e2e8f0', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {/* Word Document Paper Wrapper */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          color: '#334155', 
-          width: '100%', 
-          maxWidth: '560px', 
-          minHeight: '500px', 
-          padding: '40px', 
-          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', 
-          fontFamily: 'serif', 
-          fontSize: '0.9rem',
-          lineHeight: '1.6',
-          textAlign: 'justify'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontStyle: 'italic', fontFamily: 'var(--font-sans)', display: 'block', marginBottom: '8px' }}>
-              MS Word Simulator (.docx)
-            </span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e293b' }}>
-              TERM DELIVERABLE REPORT
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Submitted by: {studentName} ({submission.groupName || 'Individual'})
-            </p>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '550px', overflow: 'hidden', backgroundColor: 'var(--bg-app)' }}>
+        {officeViewerUrl ? (
+          <iframe 
+            src={officeViewerUrl} 
+            title={fileName} 
+            style={{ width: '100%', height: '100%', border: 'none' }} 
+            frameBorder="0"
+          />
+        ) : (
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', height: '420px', overflowY: 'auto', backgroundColor: '#e2e8f0', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ 
+              backgroundColor: '#ffffff', 
+              color: '#334155', 
+              width: '100%', 
+              maxWidth: '560px', 
+              minHeight: '500px', 
+              padding: '40px', 
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', 
+              fontFamily: 'serif', 
+              fontSize: '0.9rem',
+              lineHeight: '1.6',
+              textAlign: 'justify'
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontStyle: 'italic', fontFamily: 'var(--font-sans)', display: 'block', marginBottom: '8px' }}>
+                  MS Word Simulator (.docx)
+                </span>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e293b' }}>
+                  TERM DELIVERABLE REPORT
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Submitted by: {studentName} ({submission.groupName || 'Individual'})
+                </p>
+              </div>
+
+              <p style={{ textIndent: '30px', marginBottom: '14px' }}>
+                The objective of this software system design laboratory report is to present our comprehensive solutions for the course enrollment portal assignments. Our group developed an E-Learning portal layout incorporating essential features like assignment graders, quizzes taking engines, and course lists.
+              </p>
+
+              <p style={{ textIndent: '30px', marginBottom: '14px' }}>
+                For maximum flexibility and styling integrity, our software utilized CSS variables mapping, responsive sidebar panels, and interactive wizard toggles that allow a supervisor or lecturer to toggle roles dynamically. The dynamic states are kept in persistent client-side containers so that supervisor inspections are streamlined.
+              </p>
+
+              <h4 style={{ fontFamily: 'var(--font-sans)', fontSize: '0.95rem', fontWeight: 'bold', color: '#0f172a', marginTop: '16px', marginBottom: '6px' }}>
+                System Integrity & Validation
+              </h4>
+              <p>
+                We implemented a robust validation trigger. The timers for examinations are secured by keyframe clocks and auto-submit hooks that preserve user marks. When a user submits team assignments, the score aggregates automatically for all group circles.
+              </p>
+            </div>
           </div>
-
-          <p style={{ textIndent: '30px', marginBottom: '14px' }}>
-            The objective of this software system design laboratory report is to present our comprehensive solutions for the course enrollment portal assignments. Our group developed an E-Learning portal layout incorporating essential features like assignment graders, quizzes taking engines, and course lists.
-          </p>
-
-          <p style={{ textIndent: '30px', marginBottom: '14px' }}>
-            For maximum flexibility and styling integrity, our software utilized CSS variables mapping, responsive sidebar panels, and interactive wizard toggles that allow a supervisor or lecturer to toggle roles dynamically. The dynamic states are kept in persistent client-side containers so that supervisor inspections are streamlined.
-          </p>
-
-          <h4 style={{ fontFamily: 'var(--font-sans)', fontSize: '0.95rem', fontWeight: 'bold', color: '#0f172a', marginTop: '16px', marginBottom: '6px' }}>
-            System Integrity & Validation
-          </h4>
-          <p>
-            We implemented a robust validation trigger. The timers for examinations are secured by keyframe clocks and auto-submit hooks that preserve user marks. When a user submits team assignments, the score aggregates automatically for all group circles.
-          </p>
-        </div>
+        )}
       </div>
     );
   }

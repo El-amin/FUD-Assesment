@@ -14,7 +14,9 @@ import {
   Megaphone,
   Video,
   MapPin,
-  Menu
+  Menu,
+  Bell,
+  X
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import QuizManager from './components/QuizManager';
@@ -129,6 +131,8 @@ export default function App() {
   const [virtualClasses, setVirtualClasses] = useState(() => loadOffline('fud_assessment_virtual_classes', []));
   const [attendanceSessions, setAttendanceSessions] = useState(() => loadOffline('fud_assessment_attendance_sessions', []));
   const [attendanceRecords, setAttendanceRecords] = useState(() => loadOffline('fud_assessment_attendance_records', []));
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => loadOffline('fud_dismissed_anns', []));
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   // Auth States
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -193,6 +197,10 @@ export default function App() {
     if (isSupabaseConfigured) return;
     localStorage.setItem('fud_assessment_virtual_classes', JSON.stringify(virtualClasses));
   }, [virtualClasses]);
+
+  useEffect(() => {
+    localStorage.setItem('fud_dismissed_anns', JSON.stringify(dismissedAnnouncements));
+  }, [dismissedAnnouncements]);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -921,6 +929,85 @@ export default function App() {
     return <LoginPage users={users} onLogin={handleLoginSuccess} onChangePassword={handleChangePassword} dbError={dbError} />;
   }
 
+  // Calculate student notification alert items
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentAnns = isStudent ? announcements.filter(a => visibleCourses.some(c => c.id === a.course_id || c.id === a.courseId)) : [];
+  const unreadAnns = isStudent ? studentAnns.filter(a => !dismissedAnnouncements.includes(a.id)) : [];
+
+  const activeSessions = isStudent ? attendanceSessions.filter(s => (s.is_active !== false && s.isActive !== false) && visibleCourses.some(c => c.id === s.course_id || c.id === s.courseId)) : [];
+  const unmarkedSessions = isStudent ? activeSessions.filter(s => !attendanceRecords.some(r => (r.session_id === s.id || r.sessionId === s.id) && (r.student_id === currentUser.id || r.studentId === currentUser.id))) : [];
+
+  const courseQuizzes = isStudent ? quizzes.filter(q => visibleCourses.some(c => c.id === q.courseId || c.id === q.course_id)) : [];
+  const untakenQuizzes = isStudent ? courseQuizzes.filter(q => !submissions.some(sub => sub.taskId === q.id && sub.type === 'quiz' && (sub.studentId === currentUser.id || sub.student_id === currentUser.id))) : [];
+
+  const courseAssigns = isStudent ? assignments.filter(a => visibleCourses.some(c => c.id === a.courseId || c.id === a.course_id)) : [];
+  const unsubmittedAssigns = isStudent ? courseAssigns.filter(a => {
+    const studentGroup = activeUserEnriched?.groupId;
+    return !submissions.some(sub => {
+      if (sub.taskId !== a.id || sub.type !== 'assignment') return false;
+      if (sub.isGroupSubmission) return sub.groupId === studentGroup;
+      return sub.studentId === currentUser.id;
+    });
+  }) : [];
+
+  const notificationsList = [];
+
+  unreadAnns.forEach(a => {
+    notificationsList.push({
+      id: a.id,
+      type: 'announcement',
+      title: 'New Announcement',
+      text: a.title,
+      tab: 'forum',
+      icon: 'Megaphone',
+      color: 'rgba(10, 92, 54, 0.08)',
+      iconColor: 'var(--primary)'
+    });
+  });
+
+  unmarkedSessions.forEach(s => {
+    notificationsList.push({
+      id: s.id,
+      type: 'attendance',
+      title: 'Attendance Open',
+      text: `Mark register for ${s.title}`,
+      tab: 'attendance',
+      icon: 'MapPin',
+      color: 'rgba(234, 88, 12, 0.1)',
+      iconColor: 'var(--color-warning)'
+    });
+  });
+
+  untakenQuizzes.forEach(q => {
+    notificationsList.push({
+      id: q.id,
+      type: 'quiz',
+      title: 'Pending Quiz',
+      text: `Complete quiz: "${q.title}"`,
+      tab: 'quizzes',
+      icon: 'Award',
+      color: 'rgba(22, 163, 74, 0.1)',
+      iconColor: 'var(--primary)'
+    });
+  });
+
+  unsubmittedAssigns.forEach(a => {
+    notificationsList.push({
+      id: a.id,
+      type: 'assignment',
+      title: 'Pending Assignment',
+      text: `Submit task: "${a.title}"`,
+      tab: 'assignments',
+      icon: 'FileText',
+      color: 'rgba(59, 130, 246, 0.1)',
+      iconColor: 'var(--color-info)'
+    });
+  });
+
+  const handleDismissAnnNotif = (annId) => {
+    setDismissedAnnouncements([...dismissedAnnouncements, annId]);
+  };
+
   // Admin Dashboard Workspace
   if (currentUser.role === 'admin') {
     return (
@@ -1097,7 +1184,6 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="main-wrapper">
-        {/* Top Header */}
         <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
@@ -1111,6 +1197,205 @@ export default function App() {
               {currentTab === 'groups' ? (isLecturer ? 'Group Roster' : 'My Group Circle') : currentTab}
             </h1>
           </div>
+
+          {/* Student Notification Center Dropdown */}
+          {isStudent && (
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-title)',
+                  position: 'relative',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  transition: 'background-color var(--transition-fast)'
+                }}
+                className="btn-outline"
+                title="Notifications"
+              >
+                <Bell size={22} />
+                {notificationsList.length > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    fontSize: '0.65rem',
+                    fontWeight: 'bold',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {notificationsList.length}
+                  </span>
+                )}
+              </button>
+
+              {notifDropdownOpen && (
+                <>
+                  {/* Click outside backdrop */}
+                  <div 
+                    onClick={() => setNotifDropdownOpen(false)}
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 99
+                    }}
+                  />
+                  
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '45px',
+                    width: '340px',
+                    maxHeight: '420px',
+                    overflowY: 'auto',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-lg)',
+                    zIndex: 100,
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    {/* Header */}
+                    <div style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-title)' }}>
+                        Notifications ({notificationsList.length})
+                      </span>
+                      {unreadAnns.length > 0 && (
+                        <button 
+                          onClick={() => {
+                            setDismissedAnnouncements([...dismissedAnnouncements, ...unreadAnns.map(a => a.id)]);
+                          }}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--primary)',
+                            fontSize: '0.75rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Clear Announcements
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Scrollable list */}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {notificationsList.map(item => {
+                        return (
+                          <div 
+                            key={item.id}
+                            onClick={() => {
+                              setCurrentTab(item.tab);
+                              setNotifDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              borderBottom: '1px solid var(--border)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: 'transparent',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                backgroundColor: item.color,
+                                color: item.iconColor,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}>
+                                {item.icon === 'Megaphone' && <Megaphone size={16} />}
+                                {item.icon === 'MapPin' && <MapPin size={16} />}
+                                {item.icon === 'Award' && <Award size={16} />}
+                                {item.icon === 'FileText' && <FileText size={16} />}
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-title)' }}>
+                                  {item.title}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
+                                  {item.text}
+                                </span>
+                              </div>
+                            </div>
+
+                            {item.type === 'announcement' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDismissAnnNotif(item.id);
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: 'none',
+                                  cursor: 'pointer',
+                                  color: 'var(--text-muted)',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '50%'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-danger)'}
+                                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {notificationsList.length === 0 && (
+                        <div style={{
+                          padding: '40px 20px',
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.8rem'
+                        }}>
+                          No new notifications. You are all caught up!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Content Body Router */}

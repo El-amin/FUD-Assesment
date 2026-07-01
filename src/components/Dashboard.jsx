@@ -95,22 +95,6 @@ export default function Dashboard({
 
   const stats = isLecturer ? lecturerStats() : studentStats(user?.id);
 
-  // Latest announcement for student's courses
-  const studentAnnouncements = (announcements || []).filter(a => 
-    displayCourses.some(c => c.id === a.course_id || c.id === a.courseId)
-  ).sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
-
-  const latestAnnouncement = studentAnnouncements[0];
-
-  const [dismissedAnnId, setDismissedAnnId] = useState(() => localStorage.getItem('fud_dismissed_ann_id') || '');
-
-  const showNotification = latestAnnouncement && latestAnnouncement.id !== dismissedAnnId;
-
-  const handleDismissNotification = () => {
-    localStorage.setItem('fud_dismissed_ann_id', latestAnnouncement.id);
-    setDismissedAnnId(latestAnnouncement.id);
-  };
-
   // Get student's group mates
   const getGroupMates = () => {
     if (isLecturer || !user?.groupId) return [];
@@ -188,53 +172,6 @@ export default function Dashboard({
 
   return (
     <div>
-      {/* In-App Announcement Notification Banner */}
-      {!isLecturer && showNotification && (
-        <div className="card" style={{ 
-          borderLeft: '4px solid var(--primary)', 
-          backgroundColor: 'rgba(10, 92, 54, 0.05)', 
-          marginBottom: '20px',
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '16px'
-        }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
-              <Bell size={20} style={{ animation: 'bounce 1s infinite' }} />
-            </div>
-            <div>
-              <span className="badge badge-primary" style={{ fontSize: '0.65rem', marginBottom: '2px', display: 'inline-block' }}>
-                New Announcement
-              </span>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: '800', margin: '0 0 2px 0', color: 'var(--text-title)' }}>
-                {latestAnnouncement.title}
-              </h4>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                {latestAnnouncement.content}
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={() => setCurrentTab('forum')}
-              style={{ fontSize: '0.75rem', height: '32px' }}
-            >
-              Open Forum
-            </button>
-            <button 
-              className="btn btn-outline btn-sm"
-              onClick={handleDismissNotification}
-              style={{ fontSize: '0.75rem', height: '32px', color: 'var(--text-muted)', borderColor: 'var(--border)' }}
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Welcome Banner */}
       <div className="card" style={{ 
         background: 'linear-gradient(135deg, var(--primary) 0%, #064025 100%)', 

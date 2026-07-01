@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BookOpen, 
   Award, 
@@ -8,7 +8,9 @@ import {
   ArrowRight, 
   Clock, 
   PlusCircle, 
-  AlertCircle
+  AlertCircle,
+  MapPin,
+  Bell
 } from 'lucide-react';
 
 export default function Dashboard({ 
@@ -18,6 +20,9 @@ export default function Dashboard({
   quizzes, 
   assignments, 
   submissions, 
+  attendanceSessions = [],
+  attendanceRecords = [],
+  announcements = [],
   setCurrentTab,
   setSelectedCourseId
 }) {
@@ -68,38 +73,43 @@ export default function Dashboard({
       return sub.studentId === studentId;
     }).length;
 
-    // Calculate GPA/Progress based on scores
-    const studentGrades = submissions.filter(sub => {
-      const isMatch = sub.studentId === studentId || (sub.isGroupSubmission && sub.groupId === studentGroup);
-      return isMatch && sub.score !== undefined && sub.score !== null;
-    });
-
-    const averageGrade = studentGrades.length > 0
-      ? Math.round(studentGrades.reduce((sum, sub) => {
-          const maxScore = sub.maxScore || 100;
-          return sum + (sub.score / maxScore) * 100;
-        }, 0) / studentGrades.length)
-      : 0;
-
-    // Convert average grade to GPA
-    let gpa = 'N/A';
-    if (studentGrades.length > 0) {
-      if (averageGrade >= 85) gpa = '4.0';
-      else if (averageGrade >= 70) gpa = '3.5';
-      else if (averageGrade >= 60) gpa = '3.0';
-      else if (averageGrade >= 50) gpa = '2.5';
-      else gpa = '2.0';
-    }
+    // Calculate Attendance Percentage
+    const studentSessions = (attendanceSessions || []).filter(s => 
+      displayCourses.some(c => c.id === s.course_id || c.id === s.courseId)
+    );
+    const attendedSessions = (attendanceRecords || []).filter(r => 
+      (r.student_id === studentId || r.studentId === studentId) && 
+      studentSessions.some(s => s.id === r.session_id || s.id === r.sessionId)
+    );
+    const attendancePct = studentSessions.length > 0 
+      ? Math.round((attendedSessions.length / studentSessions.length) * 100) 
+      : 100;
 
     return [
       { label: 'Enrolled Courses', value: totalCourses, icon: BookOpen, type: 'primary' },
       { label: 'Quizzes Taken', value: completedQuizzesCount, icon: Award, type: 'secondary' },
       { label: 'Submitted Tasks', value: submittedAssignmentsCount, icon: CheckCircle, type: 'info' },
-      { label: 'Estimated GPA', value: gpa === 'N/A' ? 'N/A' : `${gpa} / 4.0`, icon: Award, type: 'primary' }
+      { label: 'Attendance Rate', value: `${attendancePct}%`, icon: MapPin, type: 'secondary' }
     ];
   };
 
   const stats = isLecturer ? lecturerStats() : studentStats(user?.id);
+
+  // Latest announcement for student's courses
+  const studentAnnouncements = (announcements || []).filter(a => 
+    displayCourses.some(c => c.id === a.course_id || c.id === a.courseId)
+  ).sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+
+  const latestAnnouncement = studentAnnouncements[0];
+
+  const [dismissedAnnId, setDismissedAnnId] = useState(() => localStorage.getItem('fud_dismissed_ann_id') || '');
+
+  const showNotification = latestAnnouncement && latestAnnouncement.id !== dismissedAnnId;
+
+  const handleDismissNotification = () => {
+    localStorage.setItem('fud_dismissed_ann_id', latestAnnouncement.id);
+    setDismissedAnnId(latestAnnouncement.id);
+  };
 
   // Get student's group mates
   const getGroupMates = () => {
@@ -178,6 +188,53 @@ export default function Dashboard({
 
   return (
     <div>
+      {/* In-App Announcement Notification Banner */}
+      {!isLecturer && showNotification && (
+        <div className="card" style={{ 
+          borderLeft: '4px solid var(--primary)', 
+          backgroundColor: 'rgba(10, 92, 54, 0.05)', 
+          marginBottom: '20px',
+          padding: '16px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+              <Bell size={20} style={{ animation: 'bounce 1s infinite' }} />
+            </div>
+            <div>
+              <span className="badge badge-primary" style={{ fontSize: '0.65rem', marginBottom: '2px', display: 'inline-block' }}>
+                New Announcement
+              </span>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: '800', margin: '0 0 2px 0', color: 'var(--text-title)' }}>
+                {latestAnnouncement.title}
+              </h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                {latestAnnouncement.content}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={() => setCurrentTab('forum')}
+              style={{ fontSize: '0.75rem', height: '32px' }}
+            >
+              Open Forum
+            </button>
+            <button 
+              className="btn btn-outline btn-sm"
+              onClick={handleDismissNotification}
+              style={{ fontSize: '0.75rem', height: '32px', color: 'var(--text-muted)', borderColor: 'var(--border)' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div className="card" style={{ 
         background: 'linear-gradient(135deg, var(--primary) 0%, #064025 100%)', 

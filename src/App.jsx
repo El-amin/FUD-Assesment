@@ -1158,6 +1158,9 @@ export default function App() {
               quizzes={quizzes}
               assignments={assignments}
               submissions={submissions}
+              attendanceSessions={attendanceSessions}
+              attendanceRecords={attendanceRecords}
+              announcements={announcements}
               setCurrentTab={setCurrentTab}
               setSelectedCourseId={setSelectedCourseId}
             />

@@ -37,18 +37,32 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
     const result = [];
     let lineNum = 0;
 
+    // Helper to split CSV lines correctly respecting quotes
+    const splitCsvLine = (line) => {
+      return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => {
+        let clean = p.trim();
+        if (clean.startsWith('"') && clean.endsWith('"')) {
+          clean = clean.substring(1, clean.length - 1).trim();
+        }
+        return clean;
+      });
+    };
+
     for (let line of lines) {
       lineNum++;
       const cleanLine = line.trim();
       if (!cleanLine) continue;
 
-      // Split by comma or semicolon
-      const parts = cleanLine.split(/[;,]/).map(p => p.trim());
+      const parts = splitCsvLine(cleanLine);
       
       // Determine if this is a header row
       const isHeader = parts.some(p => {
         const lp = p.toLowerCase();
-        return lp === 'name' || 
+        return lp === 'regno' ||
+               lp === 'fullname' ||
+               lp === 'department' ||
+               lp === 'level' ||
+               lp === 'name' || 
                lp === 'student name' || 
                lp === 'student_name' ||
                lp.includes('reg') || 
@@ -61,59 +75,59 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
 
       if (isHeader) continue;
 
-      // Extract active parts after stripping serial number if present as a column
-      let activeParts = [...parts];
-      if (activeParts.length >= 3) {
-        const firstPart = activeParts[0].toLowerCase();
-        const isSerial = /^\d+$/.test(firstPart) || 
-                         firstPart === 's/n' || 
-                         firstPart === 'sn' || 
-                         firstPart === 'no' || 
-                         firstPart === 'id' || 
-                         firstPart === 's.n' || 
-                         firstPart === 's.n.';
-        
-        if (isSerial) {
-          activeParts.shift(); // Remove serial number column
+      let regNo = '';
+      let name = '';
+      let dept = '';
+      let lvl = '';
+
+      // Check specifically for user's CSV format: REGNO, FULLNAME, DEPARTMENT, LEVEL
+      if (parts.length >= 4) {
+        regNo = parts[0];
+        name = parts[1];
+        dept = parts[2];
+        lvl = parts[3];
+      } else {
+        // Fallback for older simpler files (2 or 3 columns)
+        let activeParts = [...parts];
+        if (activeParts.length >= 3) {
+          const firstPart = activeParts[0].toLowerCase();
+          const isSerial = /^\d+$/.test(firstPart) || 
+                           firstPart === 's/n' || 
+                           firstPart === 'sn' || 
+                           firstPart === 'no' || 
+                           firstPart === 'id';
+          
+          if (isSerial) {
+            activeParts.shift(); // Remove serial number column
+          }
+        }
+
+        if (activeParts.length < 2) {
+          continue; // Skip incomplete rows silently
+        }
+
+        const looksLikeRegNo = (str) => {
+          return str.includes('/') || str.includes('-') || /\d/.test(str);
+        };
+
+        if (looksLikeRegNo(activeParts[0]) && !looksLikeRegNo(activeParts[1])) {
+          regNo = activeParts[0];
+          name = activeParts[1];
+        } else if (!looksLikeRegNo(activeParts[0]) && looksLikeRegNo(activeParts[1])) {
+          name = activeParts[0];
+          regNo = activeParts[1];
+        } else {
+          name = activeParts[0];
+          regNo = activeParts[1];
         }
       }
 
-      if (activeParts.length < 2) {
-        continue; // Skip incomplete rows silently
-      }
-
-      // Detect which column is the registration number vs student name.
-      // Heuristic: Registration numbers usually contain slashes, hyphens, or numbers.
-      const looksLikeRegNo = (str) => {
-        return str.includes('/') || str.includes('-') || /\d/.test(str);
-      };
-
-      let rawName = '';
-      let rawRegNo = '';
-
-      const part0Reg = looksLikeRegNo(activeParts[0]);
-      const part1Reg = looksLikeRegNo(activeParts[1]);
-
-      if (part0Reg && !part1Reg) {
-        // Format: RegistrationNo, Name
-        rawRegNo = activeParts[0];
-        rawName = activeParts[1];
-      } else if (!part0Reg && part1Reg) {
-        // Format: Name, RegistrationNo
-        rawName = activeParts[0];
-        rawRegNo = activeParts[1];
-      } else {
-        // Default fallback: Name first, then Registration Number
-        rawName = activeParts[0];
-        rawRegNo = activeParts[1];
-      }
-
-      // Strip any serial number prefix from name (e.g., "1. Haruna" or "1 - Haruna" or "1 Haruna")
-      let name = rawName.replace(/^\d+[\s.-]+/, '').trim();
+      // Strip any serial number prefix from name
+      name = name.replace(/^\d+[\s.-]+/, '').trim();
       name = name.replace(/^\d+\s+/, '').trim();
 
-      // Strip any serial number prefix from registration number as well just in case (e.g., "1. FUD/CSC/22/1001")
-      let regNo = rawRegNo.replace(/^\d+[\s.-]+/, '').trim();
+      // Strip any serial number prefix from registration number
+      regNo = regNo.replace(/^\d+[\s.-]+/, '').trim();
       regNo = regNo.replace(/^\d+\s+/, '').trim();
 
       // Basic validation
@@ -124,14 +138,9 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
         throw new Error(`Line ${lineNum}: Registration number cannot be empty.`);
       }
 
-      // "for email just save thier registration nuumbers instead of emails"
-      const email = regNo;
-
-      // Check if email already registered in existing system
-      const isExisting = users.some(u => u.email.toLowerCase() === email.toLowerCase() || u.id === `student_${regNo.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
-
-      // Generate a unique ID based on the registration number
+      const email = regNo; // Registration number as username!
       const generatedId = `student_${regNo.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const isExisting = users.some(u => u.email.toLowerCase() === email.toLowerCase() || u.id === generatedId);
 
       result.push({
         id: generatedId,
@@ -139,10 +148,12 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
         email: email, // Registration number saved directly in email field!
         role: 'student',
         avatar: getInitials(name),
-        password: 'password123',
+        password: email, // Registration number is also the default password!
         is_first_login: true,
         isExisting: isExisting,
-        regNo: regNo
+        regNo: regNo,
+        department: dept || null,
+        level: lvl ? parseInt(lvl) : null
       });
     }
 
@@ -217,7 +228,9 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
         role: s.role,
         avatar: s.avatar,
         password: s.password,
-        is_first_login: s.is_first_login
+        is_first_login: s.is_first_login,
+        department: s.department,
+        level: s.level
       }));
 
       await onImportStudents(cleanImportData, targetCourseId);
@@ -322,7 +335,7 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
 
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
             <HelpCircle size={14} />
-            <span>Format: <code>[S/N], Student Name, RegistrationNo</code> (Serial number prefix supported)</span>
+            <span>Format: <code>REGNO, FULLNAME, DEPARTMENT, LEVEL</code> (CSV file uploader)</span>
           </div>
         </div>
 
@@ -421,9 +434,10 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   <th style={{ textAlign: 'left', padding: '10px' }}>Avatar</th>
+                  <th style={{ textAlign: 'left', padding: '10px' }}>Reg No (Username/Password)</th>
                   <th style={{ textAlign: 'left', padding: '10px' }}>Parsed Name</th>
-                  <th style={{ textAlign: 'left', padding: '10px' }}>Parsed Email</th>
-                  <th style={{ textAlign: 'left', padding: '10px' }}>Suggested ID</th>
+                  <th style={{ textAlign: 'left', padding: '10px' }}>Department</th>
+                  <th style={{ textAlign: 'left', padding: '10px' }}>Level</th>
                   <th style={{ textAlign: 'center', padding: '10px' }}>Status Check</th>
                 </tr>
               </thead>
@@ -435,9 +449,10 @@ export default function ClassRosterManager({ users, courses, onImportStudents })
                         {s.avatar}
                       </div>
                     </td>
+                    <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: '0.8rem' }}>{s.regNo}</td>
                     <td style={{ padding: '10px', fontWeight: 'bold' }}>{s.name}</td>
-                    <td style={{ padding: '10px', fontSize: '0.85rem' }}>{s.email}</td>
-                    <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.id}</td>
+                    <td style={{ padding: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.department || 'N/A'}</td>
+                    <td style={{ padding: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.level || 'N/A'}</td>
                     <td style={{ padding: '10px', textAlign: 'center' }}>
                       {s.isExisting ? (
                         <span style={{

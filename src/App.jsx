@@ -272,7 +272,9 @@ export default function App() {
             avatar: u.avatar,
             password: u.password,
             is_first_login: u.is_first_login,
-            isFirstLogin: u.is_first_login
+            isFirstLogin: u.is_first_login,
+            department: u.department,
+            level: u.level
           }));
           setUsers(mappedUsers);
         }

@@ -36,7 +36,9 @@ CREATE TABLE users (
     role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'lecturer', 'admin')),
     avatar VARCHAR(10) NOT NULL,
     password VARCHAR(100) NOT NULL DEFAULT 'password123',
-    is_first_login BOOLEAN NOT NULL DEFAULT TRUE
+    is_first_login BOOLEAN NOT NULL DEFAULT TRUE,
+    department VARCHAR(100),
+    level INT
 );
 
 -- 3. Groups Table

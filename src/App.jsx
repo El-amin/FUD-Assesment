@@ -1417,6 +1417,33 @@ export default function App() {
             )}
             <li>
               <a 
+                className={`nav-item ${currentTab === 'forum' ? 'active' : ''}`}
+                onClick={() => { setCurrentTab('forum'); setSidebarOpen(false); }}
+              >
+                <Megaphone className="nav-icon" />
+                Announcements Forum
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'discussion' ? 'active' : ''}`}
+                onClick={() => { setCurrentTab('discussion'); setSidebarOpen(false); }}
+              >
+                <MessageSquare className="nav-icon" />
+                Discussion Forum
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'materials' ? 'active' : ''}`}
+                onClick={() => { setCurrentTab('materials'); setSidebarOpen(false); }}
+              >
+                <Library className="nav-icon" />
+                Lecture Materials
+              </a>
+            </li>
+            <li>
+              <a 
                 className={`nav-item ${currentTab === 'quizzes' ? 'active' : ''}`}
                 onClick={() => { setCurrentTab('quizzes'); setSidebarOpen(false); }}
               >
@@ -1440,33 +1467,6 @@ export default function App() {
               >
                 <BookOpen className="nav-icon" />
                 {isLecturer ? 'Gradebook Roster' : 'My Grades'}
-              </a>
-            </li>
-            <li>
-              <a 
-                className={`nav-item ${currentTab === 'materials' ? 'active' : ''}`}
-                onClick={() => { setCurrentTab('materials'); setSidebarOpen(false); }}
-              >
-                <Library className="nav-icon" />
-                Lecture Materials
-              </a>
-            </li>
-            <li>
-              <a 
-                className={`nav-item ${currentTab === 'forum' ? 'active' : ''}`}
-                onClick={() => { setCurrentTab('forum'); setSidebarOpen(false); }}
-              >
-                <Megaphone className="nav-icon" />
-                Announcements Forum
-              </a>
-            </li>
-            <li>
-              <a 
-                className={`nav-item ${currentTab === 'discussion' ? 'active' : ''}`}
-                onClick={() => { setCurrentTab('discussion'); setSidebarOpen(false); }}
-              >
-                <MessageSquare className="nav-icon" />
-                Discussion Forum
               </a>
             </li>
             <li>

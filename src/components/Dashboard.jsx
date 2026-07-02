@@ -260,7 +260,7 @@ export default function Dashboard({
                       className="btn btn-outline btn-sm"
                       onClick={() => {
                         setSelectedCourseId(course.id);
-                        setCurrentTab('quizzes'); // Go to course content
+                        setCurrentTab('forum'); // Go to course content (Announcements Forum) first
                       }}
                     >
                       Enter Course

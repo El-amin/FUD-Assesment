@@ -24,7 +24,8 @@ export default function QuizManager({
   const [qText, setQText] = useState('');
   const [qType, setQType] = useState('mcq'); // 'mcq' or 'tf'
   const [options, setOptions] = useState(['', '', '', '']);
-  const [correctAnswer, setCorrectAnswer] = useState('0'); // Index 0-3 for mcq, '0' or '1' for tf
+  const [correctAnswer, setCorrectAnswer] = useState('0'); // Index 0-3 for MCQ, '0' or '1' for TF
+  const [qPoints, setQPoints] = useState(5);
   const [errors, setErrors] = useState({});
 
   const handleAddQuestion = () => {
@@ -48,6 +49,7 @@ export default function QuizManager({
       id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
       text: qText,
       type: qType,
+      points: parseInt(qPoints) || 1,
       options: questionOpts,
       correctOptionIndex: parseInt(correctAnswer)
     };
@@ -58,6 +60,7 @@ export default function QuizManager({
     setQText('');
     setOptions(['', '', '', '']);
     setCorrectAnswer('0');
+    setQPoints(5);
   };
 
   const handleRemoveQuestion = (id) => {
@@ -367,7 +370,7 @@ export default function QuizManager({
                   {questions.map((q, index) => (
                     <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>
-                        {index + 1}. {q.text} <span style={{ color: 'var(--text-muted)' }}>({q.type.toUpperCase()})</span>
+                        {index + 1}. {q.text} <span style={{ color: 'var(--text-muted)' }}>({q.type.toUpperCase()} • {q.points || 1} pts)</span>
                       </span>
                       <button 
                         type="button" 
@@ -412,6 +415,17 @@ export default function QuizManager({
                         <option value="mcq">MCQ</option>
                         <option value="tf">True / False</option>
                       </select>
+                    </div>
+                    <div className="form-group" style={{ width: '110px', marginBottom: 0 }}>
+                      <label className="form-label">Marks/Points</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        min="1" 
+                        max="100"
+                        value={qPoints}
+                        onChange={e => setQPoints(e.target.value)}
+                      />
                     </div>
                   </div>
 

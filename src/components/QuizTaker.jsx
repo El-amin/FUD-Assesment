@@ -105,18 +105,25 @@ export default function QuizTaker({
     if (timerRef.current) clearInterval(timerRef.current);
 
     const currentAnswers = answersOverride || answers;
-    let correctCount = 0;
+    let obtainedPoints = 0;
+    let totalQuizPoints = 0;
     const questions = activeQuiz.questions;
     
     // Grade the questions
     const questionReview = questions.map(q => {
+      const qPoints = q.points !== undefined && q.points !== null ? parseInt(q.points) : 1;
+      totalQuizPoints += qPoints;
+      
       const studentAnsIdx = currentAnswers[q.id];
       const isCorrect = studentAnsIdx !== undefined && parseInt(studentAnsIdx) === q.correctOptionIndex;
-      if (isCorrect) correctCount++;
+      if (isCorrect) {
+        obtainedPoints += qPoints;
+      }
       return {
         questionId: q.id,
         text: q.text,
         type: q.type,
+        points: qPoints,
         options: q.options,
         studentAnswer: studentAnsIdx !== undefined ? q.options[studentAnsIdx] : 'No Answer',
         correctAnswer: q.options[q.correctOptionIndex],
@@ -124,7 +131,7 @@ export default function QuizTaker({
       };
     });
 
-    const scorePercent = Math.round((correctCount / questions.length) * 100);
+    const scorePercent = totalQuizPoints > 0 ? Math.round((obtainedPoints / totalQuizPoints) * 100) : 0;
     
     // Save to App state
     onSubmitQuiz(activeQuiz.id, scorePercent);

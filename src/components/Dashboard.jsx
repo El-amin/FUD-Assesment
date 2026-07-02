@@ -41,13 +41,26 @@ export default function Dashboard({
   // Calculate statistics
   const lecturerStats = () => {
     const totalCourses = displayCourses.length;
-    const activeQuizzesCount = quizzes.length;
+    const lecturerCourseIds = displayCourses.map(c => c.id);
     
+    // Count active quizzes for this lecturer
+    const lecturerQuizzes = quizzes.filter(q => lecturerCourseIds.includes(q.courseId || q.course_id));
+    const activeQuizzesCount = lecturerQuizzes.length;
+    
+    // Filter submissions to only those belonging to this lecturer's courses
+    const lecturerSubmissions = submissions.filter(sub => {
+      const task = sub.type === 'quiz' 
+        ? quizzes.find(q => q.id === sub.taskId) 
+        : assignments.find(a => a.id === sub.taskId);
+      if (!task) return false;
+      return lecturerCourseIds.includes(task.courseId || task.course_id);
+    });
+
     // Count pending grades (submissions with score === null or undefined)
-    const pendingGradingCount = submissions.filter(sub => sub.score === undefined || sub.score === null).length;
+    const pendingGradingCount = lecturerSubmissions.filter(sub => sub.score === undefined || sub.score === null).length;
     
-    // Compute average score across all graded submissions
-    const gradedSubmissions = submissions.filter(sub => sub.score !== undefined && sub.score !== null);
+    // Compute average score across all graded submissions for this lecturer
+    const gradedSubmissions = lecturerSubmissions.filter(sub => sub.score !== undefined && sub.score !== null);
     const avgScore = gradedSubmissions.length > 0
       ? Math.round(gradedSubmissions.reduce((sum, sub) => sum + sub.score, 0) / gradedSubmissions.length)
       : 85; // fallback default representation
@@ -132,8 +145,19 @@ export default function Dashboard({
   // Recent activity log generator
   const getRecentActivity = () => {
     if (isLecturer) {
+      const lecturerCourseIds = displayCourses.map(c => c.id);
+      // Filter submissions to only those belonging to the lecturer's courses
+      const lecturerSubmissions = submissions.filter(sub => {
+        const task = sub.type === 'quiz' 
+          ? quizzes.find(q => q.id === sub.taskId) 
+          : assignments.find(a => a.id === sub.taskId);
+        if (!task) return false;
+        const cId = task.courseId || task.course_id;
+        return lecturerCourseIds.includes(cId);
+      });
+
       // Show latest submissions
-      return submissions.slice(-4).reverse().map(sub => {
+      return lecturerSubmissions.slice(-4).reverse().map(sub => {
         const student = users.find(u => u.id === sub.studentId);
         const task = sub.type === 'quiz' 
           ? quizzes.find(q => q.id === sub.taskId) 

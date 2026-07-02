@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Award, BookOpen, FileText, CheckCircle, TrendingUp, Download } from 'lucide-react';
 
 export default function Gradebook({ 
@@ -7,11 +7,18 @@ export default function Gradebook({
   courses, 
   quizzes, 
   assignments, 
-  submissions 
+  submissions,
+  initialCourseId
 }) {
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
+  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const user = users.find(u => u.id === currentRole) || users[0];
   const isLecturer = user.role === 'lecturer';
+
+  useEffect(() => {
+    if (initialCourseId) {
+      setSelectedCourseId(initialCourseId);
+    }
+  }, [initialCourseId]);
 
   // --- STUDENT GRADEBOOK LOGIC ---
   const renderStudentGradebook = () => {

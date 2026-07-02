@@ -1500,6 +1500,45 @@ export default function App() {
 
         {/* Content Body Router */}
         <div className="content-body">
+          {/* Active Course View Bar */}
+          {currentTab !== 'dashboard' && currentTab !== 'my_courses' && currentTab !== 'roster' && (
+            <div className="card" style={{ 
+              padding: '12px 20px', 
+              marginBottom: '20px', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              backgroundColor: 'var(--bg-card)', 
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-sm)',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={18} style={{ color: 'var(--primary)' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  Active Course: <span style={{ color: 'var(--primary)' }}>
+                    {courses.find(c => c.id === selectedCourseId)?.code || 'General'} - {courses.find(c => c.id === selectedCourseId)?.name || 'General'}
+                  </span>
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>Switch Course View:</span>
+                <select 
+                  className="form-select" 
+                  value={selectedCourseId}
+                  onChange={e => setSelectedCourseId(e.target.value)}
+                  style={{ width: '180px', height: '32px', fontSize: '0.8rem', padding: '0 8px' }}
+                >
+                  {visibleCourses.map(course => (
+                    <option key={course.id} value={course.id}>{course.code}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {currentTab === 'dashboard' && (
             <Dashboard 
               currentRole={activeUser.id}
@@ -1521,7 +1560,7 @@ export default function App() {
               currentRole={activeUser.id}
               users={users}
               courses={visibleCourses}
-              groups={groups}
+              groups={groups.filter(g => g.courseId === selectedCourseId || g.course_id === selectedCourseId)}
               onAddGroup={handleAddGroup}
               onUpdateGroup={handleUpdateGroup}
               onDeleteGroup={handleDeleteGroup}
@@ -1532,16 +1571,17 @@ export default function App() {
             isLecturer ? (
               <QuizManager 
                 courses={visibleCourses}
-                quizzes={quizzes}
+                quizzes={quizzes.filter(q => q.courseId === selectedCourseId || q.course_id === selectedCourseId)}
                 submissions={submissions}
                 users={enrichedUsers}
                 onAddQuiz={handleAddQuiz}
                 onReleaseQuizScore={handleReleaseQuizScore}
                 onReleaseAllQuizScores={handleReleaseAllQuizScores}
+                activeCourseId={selectedCourseId}
               />
             ) : (
               <QuizTaker 
-                quizzes={quizzes}
+                quizzes={quizzes.filter(q => q.courseId === selectedCourseId || q.course_id === selectedCourseId)}
                 submissions={submissions}
                 courses={courses}
                 currentStudentId={activeUserEnriched.id}
@@ -1554,16 +1594,17 @@ export default function App() {
             isLecturer ? (
               <AssignmentManager 
                 courses={visibleCourses}
-                assignments={assignments}
+                assignments={assignments.filter(a => a.courseId === selectedCourseId || a.course_id === selectedCourseId)}
                 submissions={submissions}
                 users={enrichedUsers}
                 onAddAssignment={handleAddAssignment}
                 onUpdateAssignment={handleUpdateAssignment}
                 onGradeSubmission={handleGradeSubmission}
+                activeCourseId={selectedCourseId}
               />
             ) : (
               <AssignmentSubmitter 
-                assignments={assignments}
+                assignments={assignments.filter(a => a.courseId === selectedCourseId || a.course_id === selectedCourseId)}
                 submissions={submissions}
                 courses={courses}
                 users={enrichedUsers}
@@ -1581,6 +1622,7 @@ export default function App() {
               quizzes={quizzes}
               assignments={assignments}
               submissions={submissions}
+              initialCourseId={selectedCourseId}
             />
           )}
 
@@ -1605,9 +1647,10 @@ export default function App() {
               currentRole={activeUser.id}
               users={enrichedUsers}
               courses={visibleCourses}
-              materials={materials}
+              materials={materials.filter(m => m.course_id === selectedCourseId || m.courseId === selectedCourseId)}
               onAddMaterial={handleAddMaterial}
               onDeleteMaterial={handleDeleteMaterial}
+              activeCourseId={selectedCourseId}
             />
           )}
 
@@ -1616,9 +1659,10 @@ export default function App() {
               currentRole={activeUser.id}
               users={enrichedUsers}
               courses={visibleCourses}
-              announcements={announcements}
+              announcements={announcements.filter(a => a.course_id === selectedCourseId || a.courseId === selectedCourseId)}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
+              activeCourseId={selectedCourseId}
             />
           )}
 
@@ -1627,9 +1671,10 @@ export default function App() {
               currentRole={activeUser.id}
               users={enrichedUsers}
               courses={visibleCourses}
-              virtualClasses={virtualClasses}
+              virtualClasses={virtualClasses.filter(vc => vc.course_id === selectedCourseId || vc.courseId === selectedCourseId)}
               onAddVirtualClass={handleAddVirtualClass}
               onDeleteVirtualClass={handleDeleteVirtualClass}
+              activeCourseId={selectedCourseId}
             />
           )}
 
@@ -1638,12 +1683,13 @@ export default function App() {
               currentRole={activeUser.id}
               users={enrichedUsers}
               courses={visibleCourses}
-              attendanceSessions={attendanceSessions}
+              attendanceSessions={attendanceSessions.filter(s => s.course_id === selectedCourseId || s.courseId === selectedCourseId)}
               attendanceRecords={attendanceRecords}
               onAddAttendanceSession={handleAddAttendanceSession}
               onToggleAttendanceSession={handleToggleAttendanceSession}
               onDeleteAttendanceSession={handleDeleteAttendanceSession}
               onMarkAttendance={handleMarkAttendance}
+              activeCourseId={selectedCourseId}
             />
           )}
         </div>

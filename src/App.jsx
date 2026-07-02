@@ -113,6 +113,14 @@ const INITIAL_SUBMISSIONS = [
   }
 ];
 
+const INITIAL_ENROLLMENTS = [
+  { id: 'e1', student_id: 'student_aliyu', studentId: 'student_aliyu', course_id: 'cosc_301', courseId: 'cosc_301' },
+  { id: 'e2', student_id: 'student_fatima', studentId: 'student_fatima', course_id: 'cosc_301', courseId: 'cosc_301' },
+  { id: 'e3', student_id: 'student_chidi', studentId: 'student_chidi', course_id: 'cosc_301', courseId: 'cosc_301' },
+  { id: 'e4', student_id: 'student_aliyu', studentId: 'student_aliyu', course_id: 'cosc_305', courseId: 'cosc_305' },
+  { id: 'e5', student_id: 'student_fatima', studentId: 'student_fatima', course_id: 'cosc_305', courseId: 'cosc_305' }
+];
+
 export default function App() {
   const loadOffline = (key, seed) => {
     const saved = localStorage.getItem(key);
@@ -131,6 +139,7 @@ export default function App() {
   const [virtualClasses, setVirtualClasses] = useState(() => loadOffline('fud_assessment_virtual_classes', []));
   const [attendanceSessions, setAttendanceSessions] = useState(() => loadOffline('fud_assessment_attendance_sessions', []));
   const [attendanceRecords, setAttendanceRecords] = useState(() => loadOffline('fud_assessment_attendance_records', []));
+  const [enrollments, setEnrollments] = useState(() => loadOffline('fud_assessment_enrollments', INITIAL_ENROLLMENTS));
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => loadOffline('fud_dismissed_anns', []));
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
@@ -211,6 +220,11 @@ export default function App() {
     if (isSupabaseConfigured) return;
     localStorage.setItem('fud_assessment_attendance_records', JSON.stringify(attendanceRecords));
   }, [attendanceRecords]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_enrollments', JSON.stringify(enrollments));
+  }, [enrollments]);
 
   // Auth local caching
   useEffect(() => {
@@ -364,6 +378,23 @@ export default function App() {
         const { data: recordsData, error: recordsError } = await supabase.from('attendance_records').select('*');
         if (recordsError) throw recordsError;
         if (recordsData) setAttendanceRecords(recordsData);
+
+        // Fetch enrollments
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase.from('enrollments').select('*');
+        if (enrollmentsError) {
+          console.warn('Enrollments table could not be fetched:', enrollmentsError.message);
+        } else if (enrollmentsData) {
+          const mappedEnrollments = enrollmentsData.map(e => ({
+            id: e.id,
+            student_id: e.student_id,
+            studentId: e.student_id,
+            course_id: e.course_id,
+            courseId: e.course_id,
+            enrolled_at: e.enrolled_at,
+            enrolledAt: e.enrolled_at
+          }));
+          setEnrollments(mappedEnrollments);
+        }
       } catch (err) {
         console.error('Error fetching Supabase data, utilizing offline caches instead:', err);
         setDbError(err.message || JSON.stringify(err));
@@ -412,17 +443,20 @@ export default function App() {
   const isLecturer = activeUser?.role === 'lecturer';
 
   const lecturerCourses = courses.filter(c => c.lecturerId === activeUser?.id || c.lecturer_id === activeUser?.id);
-  const visibleCourses = isLecturer ? lecturerCourses : courses;
+  const studentEnrolledCourses = courses.filter(c => 
+    enrollments.some(e => (e.student_id === activeUser?.id || e.studentId === activeUser?.id) && (e.course_id === c.id || e.courseId === c.id))
+  );
+  const visibleCourses = isLecturer ? lecturerCourses : studentEnrolledCourses;
 
-  // Sync selectedCourseId for lecturers
+  // Sync selectedCourseId for lecturers and students
   useEffect(() => {
-    if (isLecturer && lecturerCourses.length > 0) {
-      const hasSelected = lecturerCourses.some(c => c.id === selectedCourseId);
+    if (visibleCourses.length > 0) {
+      const hasSelected = visibleCourses.some(c => c.id === selectedCourseId);
       if (!hasSelected) {
-        setSelectedCourseId(lecturerCourses[0].id);
+        setSelectedCourseId(visibleCourses[0].id);
       }
     }
-  }, [currentUser, courses]);
+  }, [currentUser, courses, enrollments, visibleCourses]);
 
   // --- DYNAMICALLY RESOLVE GROUP MEMBERSHIP FOR GENERAL COMPATIBILITY ---
   const enrichedUsers = users.map(u => {
@@ -828,15 +862,64 @@ export default function App() {
     triggerToast(`User account removed.`);
   };
 
-  const handleImportStudents = async (newStudents) => {
+  const handleImportStudents = async (newStudents, targetCourseId) => {
+    const newEnrollments = newStudents.map(student => ({
+      id: `enroll_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      student_id: student.id,
+      studentId: student.id,
+      course_id: targetCourseId,
+      courseId: targetCourseId,
+      enrolled_at: new Date().toISOString(),
+      enrolledAt: new Date().toISOString()
+    }));
+
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('users').insert(newStudents);
-      if (error) {
-        throw new Error(error.message);
+      const { error: usersError } = await supabase.from('users').insert(newStudents);
+      if (usersError) {
+        throw new Error(usersError.message);
+      }
+      
+      const { error: enrollError } = await supabase.from('enrollments').insert(newEnrollments.map(e => ({
+        id: e.id,
+        student_id: e.student_id,
+        course_id: e.course_id
+      })));
+      if (enrollError) {
+        console.error("Enrollment insert warning:", enrollError.message);
       }
     }
+    
     setUsers([...users, ...newStudents]);
-    triggerToast(`Imported ${newStudents.length} students successfully!`);
+    setEnrollments([...enrollments, ...newEnrollments]);
+    triggerToast(`Imported ${newStudents.length} students and enrolled them successfully!`);
+  };
+
+  const handleEnrollStudent = async (studentId, courseId) => {
+    const newEnrollment = {
+      id: `enroll_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      student_id: studentId,
+      studentId: studentId,
+      course_id: courseId,
+      courseId: courseId,
+      enrolled_at: new Date().toISOString(),
+      enrolledAt: new Date().toISOString()
+    };
+    
+    if (isSupabaseConfigured) {
+      const dbRecord = {
+        id: newEnrollment.id,
+        student_id: newEnrollment.student_id,
+        course_id: newEnrollment.course_id
+      };
+      const { error } = await supabase.from('enrollments').insert([dbRecord]);
+      if (error) {
+        alert("Supabase Enrollment Error: " + error.message);
+        return;
+      }
+    }
+    
+    setEnrollments([...enrollments, newEnrollment]);
+    triggerToast("Enrolled in course successfully!");
   };
 
   const handleChangePassword = async (userId, newPassword) => {
@@ -1543,7 +1626,7 @@ export default function App() {
             <Dashboard 
               currentRole={activeUser.id}
               users={enrichedUsers}
-              courses={courses}
+              courses={visibleCourses}
               quizzes={quizzes}
               assignments={assignments}
               submissions={submissions}
@@ -1552,6 +1635,9 @@ export default function App() {
               announcements={announcements}
               setCurrentTab={setCurrentTab}
               setSelectedCourseId={setSelectedCourseId}
+              allCourses={courses}
+              enrolledCourseIds={studentEnrolledCourses.map(c => c.id)}
+              onEnrollStudent={handleEnrollStudent}
             />
           )}
 
@@ -1638,6 +1724,7 @@ export default function App() {
           {currentTab === 'roster' && isLecturer && (
             <ClassRosterManager 
               users={users} 
+              courses={visibleCourses}
               onImportStudents={handleImportStudents} 
             />
           )}

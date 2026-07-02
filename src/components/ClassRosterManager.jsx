@@ -10,10 +10,11 @@ import {
   HelpCircle
 } from 'lucide-react';
 
-export default function ClassRosterManager({ users, onImportStudents }) {
+export default function ClassRosterManager({ users, courses, onImportStudents }) {
   const [csvFile, setCsvFile] = useState(null);
   const [pastedText, setPastedText] = useState('');
   const [parsedStudents, setParsedStudents] = useState([]);
+  const [targetCourseId, setTargetCourseId] = useState(courses[0]?.id || '');
   
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -219,9 +220,9 @@ export default function ClassRosterManager({ users, onImportStudents }) {
         is_first_login: s.is_first_login
       }));
 
-      await onImportStudents(cleanImportData);
+      await onImportStudents(cleanImportData, targetCourseId);
       
-      setSuccessMsg(`Successfully imported ${cleanImportData.length} students into the assessment system!`);
+      setSuccessMsg(`Successfully imported ${cleanImportData.length} students and enrolled them into the selected course!`);
       setParsedStudents([]);
       setPastedText('');
       setCsvFile(null);
@@ -248,6 +249,26 @@ export default function ClassRosterManager({ users, onImportStudents }) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Target Course Enrollment selector */}
+      <div className="card" style={{ padding: '20px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-title)' }}>
+          Select Target Course for Enrollment:
+        </span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          All students imported below will be registered to the system and automatically enrolled into this course.
+        </span>
+        <select 
+          className="form-select" 
+          value={targetCourseId} 
+          onChange={e => setTargetCourseId(e.target.value)}
+          style={{ maxWidth: '400px', marginTop: '4px' }}
+        >
+          {courses.map(course => (
+            <option key={course.id} value={course.id}>{course.code} - {course.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Upload/Paste Form Split Workspace */}

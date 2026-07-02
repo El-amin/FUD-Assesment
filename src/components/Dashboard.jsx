@@ -24,10 +24,14 @@ export default function Dashboard({
   attendanceRecords = [],
   announcements = [],
   setCurrentTab,
-  setSelectedCourseId
+  setSelectedCourseId,
+  allCourses = [],
+  enrolledCourseIds = [],
+  onEnrollStudent
 }) {
   const user = users.find(u => u.id === currentRole) || users[0] || { id: 'unknown', role: 'student', name: 'User', avatar: 'U' };
   const isLecturer = user?.role === 'lecturer';
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
   // Filter courses for Lecturers: only show courses they offer
   const displayCourses = isLecturer 
@@ -236,26 +240,100 @@ export default function Dashboard({
               My Registered Courses
             </h3>
             <div className="item-list" style={{ marginTop: '16px' }}>
-              {displayCourses.map(course => (
-                <div key={course.id} className="list-item">
-                  <div>
-                    <span className="list-item-title">{course.code}: {course.name}</span>
-                    <p className="list-item-desc">Semester: {course.semester} | Department: {course.department}</p>
-                  </div>
-                  <button 
-                    className="btn btn-outline btn-sm"
-                    onClick={() => {
-                      setSelectedCourseId(course.id);
-                      setCurrentTab(isLecturer ? 'quizzes' : 'quizzes'); // Go to course content
-                    }}
-                  >
-                    Enter Course
-                    <ArrowRight size={14} />
-                  </button>
+              {displayCourses.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
+                  <p style={{ fontStyle: 'italic', margin: '0 0 8px 0', fontSize: '0.85rem' }}>
+                    You are not enrolled in any courses yet.
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                    Please use the search tool below to enroll in your courses.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                displayCourses.map(course => (
+                  <div key={course.id} className="list-item">
+                    <div>
+                      <span className="list-item-title">{course.code}: {course.name}</span>
+                      <p className="list-item-desc">Semester: {course.semester} | Department: {course.department}</p>
+                    </div>
+                    <button 
+                      className="btn btn-outline btn-sm"
+                      onClick={() => {
+                        setSelectedCourseId(course.id);
+                        setCurrentTab('quizzes'); // Go to course content
+                      }}
+                    >
+                      Enter Course
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
+
+          {/* Self-Enrollment Tool (Student Only) */}
+          {!isLecturer && (
+            <div className="card" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: 'var(--primary)' }}>
+                <PlusCircle size={20} />
+                <h3 style={{ fontSize: '1rem', fontWeight: '800', margin: 0 }}>Enroll in a New Course</h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.4' }}>
+                Search for your course code (e.g. COSC 301) to add it to your registered courses dashboard.
+              </p>
+              
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter Course Code (e.g. COSC 301)..."
+                  value={courseSearchQuery}
+                  onChange={e => setCourseSearchQuery(e.target.value)}
+                  style={{ flexGrow: 1 }}
+                />
+              </div>
+
+              {courseSearchQuery.trim() && (() => {
+                const query = courseSearchQuery.trim().toUpperCase();
+                const matchedCourses = allCourses.filter(c => c.code.toUpperCase().includes(query) || c.name.toUpperCase().includes(query));
+                
+                return (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', backgroundColor: 'var(--bg-app)' }}>
+                    {matchedCourses.map(c => {
+                      const isEnrolled = enrolledCourseIds.includes(c.id);
+                      return (
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                          <div>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-title)' }}>{c.code}: {c.name}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Semester: {c.semester} | Department: {c.department}</span>
+                          </div>
+                          {isEnrolled ? (
+                            <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem' }}>✓ Enrolled</span>
+                          ) : (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                onEnrollStudent(user.id, c.id);
+                                setCourseSearchQuery('');
+                              }}
+                            >
+                              Enroll Now
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {matchedCourses.length === 0 && (
+                      <p style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, textAlign: 'center' }}>
+                        No courses match "{courseSearchQuery}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Group Panel (Student Only) */}
           {!isLecturer && user?.groupId && (

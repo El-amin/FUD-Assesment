@@ -279,7 +279,7 @@ export default function GroupManager({
                     required
                   >
                     <option value="">-- Choose a Student --</option>
-                    {students.map(s => (
+                    {getUnassignedStudents().map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
@@ -298,7 +298,7 @@ export default function GroupManager({
                     gap: '8px',
                     backgroundColor: 'var(--bg-app)' 
                   }}>
-                    {students.map(s => {
+                    {getUnassignedStudents().map(s => {
                       const isLeader = leaderId === s.id;
                       const isChecked = selectedMembers.includes(s.id);
                       return (

@@ -135,11 +135,20 @@ export default function Dashboard({
           ? quizzes.find(q => q.id === sub.taskId) 
           : assignments.find(a => a.id === sub.taskId);
         
+        let maxPoints = sub.maxScore;
+        let obtainedScore = sub.score;
+        if (sub.type === 'quiz' && task) {
+          maxPoints = task.questions.reduce((sum, q) => sum + (parseInt(q.points) || 1), 0);
+          if (typeof sub.score === 'number' && sub.score > maxPoints) {
+            obtainedScore = Math.round((sub.score / 100) * maxPoints);
+          }
+        }
+        
         return {
           id: sub.id,
           text: `${student ? student.name : 'A student'} submitted ${sub.type === 'quiz' ? 'quiz' : 'assignment'} "${task ? task.title : 'Task'}"`,
           time: 'Just now',
-          score: sub.score !== undefined && sub.score !== null ? `Graded: ${sub.score}/${sub.maxScore}` : 'Pending Grade',
+          score: sub.score !== undefined && sub.score !== null ? `Graded: ${obtainedScore}/${maxPoints}` : 'Pending Grade',
           type: sub.type
         };
       });
@@ -148,7 +157,8 @@ export default function Dashboard({
       return submissions
         .filter(sub => {
           const isMatch = sub.studentId === user?.id || (sub.isGroupSubmission && sub.groupId === user?.groupId);
-          return isMatch && sub.score !== undefined && sub.score !== null;
+          const isQuizReleased = sub.type !== 'quiz' || (sub.isReleased || sub.is_released);
+          return isMatch && sub.score !== undefined && sub.score !== null && isQuizReleased;
         })
         .slice(-4)
         .reverse()
@@ -157,11 +167,20 @@ export default function Dashboard({
             ? quizzes.find(q => q.id === sub.taskId) 
             : assignments.find(a => a.id === sub.taskId);
           
+          let maxPoints = sub.maxScore;
+          let obtainedScore = sub.score;
+          if (sub.type === 'quiz' && task) {
+            maxPoints = task.questions.reduce((sum, q) => sum + (parseInt(q.points) || 1), 0);
+            if (typeof sub.score === 'number' && sub.score > maxPoints) {
+              obtainedScore = Math.round((sub.score / 100) * maxPoints);
+            }
+          }
+          
           return {
             id: sub.id,
             text: `Your ${sub.type} "${task ? task.title : 'Task'}" has been graded`,
             time: 'Recently',
-            score: `Grade: ${sub.score}/${sub.maxScore}`,
+            score: `Grade: ${obtainedScore}/${maxPoints}`,
             type: sub.type
           };
         });

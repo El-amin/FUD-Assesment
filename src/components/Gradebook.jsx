@@ -24,16 +24,23 @@ export default function Gradebook({
 
     const gradesList = [];
 
-    // Evaluate Quizzes (Actual score out of 100 max points)
+    // Evaluate Quizzes (Actual score out of quiz total points)
     courseQuizzes.forEach(quiz => {
       const sub = submissions.find(s => s.taskId === quiz.id && s.studentId === studentId && s.type === 'quiz');
       const isReleased = sub ? (sub.isReleased || sub.is_released) : false;
+      const maxPoints = quiz.questions.reduce((sum, q) => sum + (parseInt(q.points) || 1), 0);
+      let obtainedScore = sub ? (isReleased ? sub.score : 'Pending Release') : null;
+      if (sub && isReleased && typeof sub.score === 'number' && sub.score > maxPoints) {
+        // Backwards compatibility for percentage scores
+        obtainedScore = Math.round((sub.score / 100) * maxPoints);
+      }
+
       gradesList.push({
         id: quiz.id,
         title: quiz.title,
         type: 'Quiz',
-        maxScore: 100,
-        score: sub ? (isReleased ? sub.score : 'Pending Release') : null,
+        maxScore: maxPoints,
+        score: obtainedScore,
         status: sub ? (isReleased ? 'Graded' : 'Submitted (Awaiting Release)') : 'Not Taken',
         feedback: sub ? (isReleased ? 'Auto-graded upon submission' : 'Score withheld awaiting lecturer review') : 'Pending completion'
       });

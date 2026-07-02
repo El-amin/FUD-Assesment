@@ -131,12 +131,10 @@ export default function QuizTaker({
       };
     });
 
-    const scorePercent = totalQuizPoints > 0 ? Math.round((obtainedPoints / totalQuizPoints) * 100) : 0;
-    
     // Save to App state
-    onSubmitQuiz(activeQuiz.id, scorePercent);
+    onSubmitQuiz(activeQuiz.id, obtainedPoints);
 
-    setGradedScore(scorePercent);
+    setGradedScore(obtainedPoints);
     setLastSubmissionDetails(questionReview);
     setQuizFinished(true);
   };
@@ -353,7 +351,14 @@ export default function QuizTaker({
                     <CheckCircle size={18} style={{ color: 'var(--color-success)' }} />
                     <span style={{ fontSize: '0.9rem', fontWeight: '700' }}>
                       {status.isReleased ? (
-                        <>Score: <span style={{ color: 'var(--primary)' }}>{status.score}%</span></>
+                        (() => {
+                          const maxPoints = quiz.questions.reduce((sum, q) => sum + (parseInt(q.points) || 1), 0);
+                          let obtainedScore = status.score;
+                          if (status.score > maxPoints) {
+                            obtainedScore = Math.round((status.score / 100) * maxPoints);
+                          }
+                          return <>Score: <span style={{ color: 'var(--primary)' }}>{obtainedScore} / {maxPoints}</span></>;
+                        })()
                       ) : (
                         <span style={{ color: 'var(--color-warning)', fontSize: '0.8rem' }}>Grade Pending Release</span>
                       )}

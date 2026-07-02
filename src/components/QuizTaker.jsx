@@ -183,10 +183,10 @@ export default function QuizTaker({
               margin: '0 auto 24px'
             }}>
               <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>
-                🔒 Grade Release Policy Enabled
+                🔒 Scores will be Release  Later
               </span>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                For academic integrity, scores are hidden until reviewed and released by your course lecturer. You will see your score in your Academic Gradebook once it is officially published.
+                Scores are hidden until reviewed and released by your course lecturer. You will see your score in your Academic Gradebook once it is officially published.
               </span>
             </div>
 

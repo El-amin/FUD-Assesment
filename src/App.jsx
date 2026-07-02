@@ -1011,7 +1011,8 @@ export default function App() {
         student_name: newRecord.student_name,
         reg_no: newRecord.reg_no,
         gps_lat: newRecord.gps_lat,
-        gps_lng: newRecord.gps_lng
+        gps_lng: newRecord.gps_lng,
+        ip_address: newRecord.ip_address || newRecord.ipAddress || null
       };
       const { error } = await supabase.from('attendance_records').insert([dbRecord]);
       if (error) {

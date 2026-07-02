@@ -100,7 +100,16 @@ export default function AttendanceManager({
   };
 
   // Final submission execution
-  const submitAttendance = (sessionId, lat, lng) => {
+  const submitAttendance = async (sessionId, lat, lng) => {
+    let clientIp = 'Unknown';
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      clientIp = data.ip || 'Unknown';
+    } catch (err) {
+      console.warn('IP retrieval failed:', err);
+    }
+
     const newRecord = {
       id: 'record_' + Date.now().toString(),
       session_id: sessionId,
@@ -116,14 +125,16 @@ export default function AttendanceManager({
       gps_lat: lat ? parseFloat(lat) : null,
       gpsLat: lat ? parseFloat(lat) : null,
       gps_lng: lng ? parseFloat(lng) : null,
-      gpsLng: lng ? parseFloat(lng) : null
+      gpsLng: lng ? parseFloat(lng) : null,
+      ip_address: clientIp,
+      ipAddress: clientIp
     };
 
     onMarkAttendance(newRecord);
     setIsGettingLocation(false);
     setGpsError('');
     setManualGpsInput(false);
-    alert('Attendance marked present successfully!');
+    alert(`Attendance marked present successfully! Verified IP: ${clientIp}`);
   };
 
   const handleManualSubmit = (e, sessionId) => {
@@ -337,6 +348,7 @@ export default function AttendanceManager({
                         <th style={{ textAlign: 'left', padding: '10px' }}>Reg Number</th>
                         <th style={{ textAlign: 'left', padding: '10px' }}>Timestamp</th>
                         <th style={{ textAlign: 'center', padding: '10px' }}>Location coordinates (GPS)</th>
+                        <th style={{ textAlign: 'center', padding: '10px' }}>Logged IP Address</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -378,12 +390,15 @@ export default function AttendanceManager({
                               </span>
                             )}
                           </td>
+                          <td style={{ padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            {r.ip_address || r.ipAddress || 'Unknown'}
+                          </td>
                         </tr>
                       ))}
 
                       {records.length === 0 && (
                         <tr>
-                          <td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                          <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                             No student has marked attendance for this session yet.
                           </td>
                         </tr>

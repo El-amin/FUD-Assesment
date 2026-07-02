@@ -204,6 +204,7 @@ CREATE TABLE attendance_records (
     marked_at TIMESTAMP DEFAULT NOW(),
     gps_lat DOUBLE PRECISION,
     gps_lng DOUBLE PRECISION,
+    ip_address VARCHAR(50),
     UNIQUE(session_id, student_id)
 );
 

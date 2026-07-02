@@ -28,6 +28,8 @@ export default function AdminDashboard({
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [studentPage, setStudentPage] = useState(1);
+  const studentsPerPage = 10;
 
   // Course Form State
   const [courseCode, setCourseCode] = useState('');
@@ -179,7 +181,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'courses' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('courses'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
+                onClick={() => { setActiveTab('courses'); setSearchQuery(''); setStudentPage(1); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <BookOpen className="nav-icon" />
                 Manage Courses
@@ -188,7 +190,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'lecturers' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('lecturers'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
+                onClick={() => { setActiveTab('lecturers'); setSearchQuery(''); setStudentPage(1); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <GraduationCap className="nav-icon" />
                 Manage Lecturers
@@ -197,7 +199,7 @@ export default function AdminDashboard({
             <li>
               <a 
                 className={`nav-item ${activeTab === 'students' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('students'); setSearchQuery(''); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
+                onClick={() => { setActiveTab('students'); setSearchQuery(''); setStudentPage(1); setFormError(''); setFormSuccess(''); setSidebarOpen(false); }}
               >
                 <Users className="nav-icon" />
                 Manage Students
@@ -441,7 +443,7 @@ export default function AdminDashboard({
                   className="form-input form-input-sm" 
                   placeholder={`Search ${activeTab}...`}
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => { setSearchQuery(e.target.value); setStudentPage(1); }}
                   style={{ paddingLeft: '32px', height: '36px', fontSize: '0.8rem' }}
                 />
               </div>
@@ -536,47 +538,86 @@ export default function AdminDashboard({
               ) : (
                 filteredStudents.length === 0 ? (
                   <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No students found.</div>
-                ) : (
-                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Avatar</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Registration Number</th>
-                        <th style={{ textAlign: 'center', padding: '12px', width: '80px' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStudents.map(s => (
-                        <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px' }}>
-                            <div className="user-avatar" style={{ margin: 0, width: '32px', height: '32px', fontSize: '0.8rem' }}>{s.avatar}</div>
-                          </td>
-                          <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.name}</td>
-                          <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{s.email}</td>
-                          <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {['student_aliyu', 'student_fatima', 'student_chidi'].includes(s.id) ? (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
-                            ) : (
-                              <button 
-                                onClick={() => {
-                                  if(confirm(`Delete student ${s.name}?`)) {
-                                    onDeleteUser(s.id);
-                                    setFormSuccess(`Student "${s.name}" deleted.`);
-                                  }
-                                }}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                title="Delete Student"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )
+                ) : (() => {
+                  const totalStudentPages = Math.ceil(filteredStudents.length / studentsPerPage);
+                  const startIndex = (studentPage - 1) * studentsPerPage;
+                  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + studentsPerPage);
+
+                  return (
+                    <>
+                      <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left', padding: '12px' }}>Avatar</th>
+                            <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
+                            <th style={{ textAlign: 'left', padding: '12px' }}>Registration Number</th>
+                            <th style={{ textAlign: 'center', padding: '12px', width: '80px' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedStudents.map(s => (
+                            <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '12px' }}>
+                                <div className="user-avatar" style={{ margin: 0, width: '32px', height: '32px', fontSize: '0.8rem' }}>{s.avatar}</div>
+                              </td>
+                              <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.name}</td>
+                              <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{s.email}</td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
+                                {['student_aliyu', 'student_fatima', 'student_chidi'].includes(s.id) ? (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
+                                ) : (
+                                  <button 
+                                    onClick={() => {
+                                      if(confirm(`Delete student ${s.name}?`)) {
+                                        onDeleteUser(s.id);
+                                        setFormSuccess(`Student "${s.name}" deleted.`);
+                                      }
+                                    }}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
+                                    title="Delete Student"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {totalStudentPages > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', gap: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Showing {startIndex + 1} to {Math.min(startIndex + studentsPerPage, filteredStudents.length)} of {filteredStudents.length} students
+                          </span>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              disabled={studentPage === 1}
+                              onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            >
+                              Previous
+                            </button>
+                            <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem', fontWeight: 'bold', padding: '0 8px' }}>
+                              Page {studentPage} of {totalStudentPages}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              disabled={studentPage === totalStudentPages}
+                              onClick={() => setStudentPage(p => Math.min(totalStudentPages, p + 1))}
+                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
               )}
             </div>
           </div>

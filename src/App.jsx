@@ -876,23 +876,18 @@ export default function App() {
     }));
 
     if (isSupabaseConfigured) {
-      try {
-        const { error: usersError } = await supabase.from('users').insert(newStudents);
-        if (usersError) {
-          throw new Error(usersError.message);
-        }
-        
-        const { error: enrollError } = await supabase.from('enrollments').insert(newEnrollments.map(e => ({
-          id: e.id,
-          student_id: e.student_id,
-          course_id: e.course_id
-        })));
-        if (enrollError) {
-          console.error("Enrollment insert warning:", enrollError.message);
-        }
-      } catch (err) {
-        console.error("Import network error:", err);
-        alert("Database connection failed. Saving imported student data and enrollments locally in offline/sandbox mode.");
+      const { error: usersError } = await supabase.from('users').insert(newStudents);
+      if (usersError) {
+        throw new Error(usersError.message);
+      }
+      
+      const { error: enrollError } = await supabase.from('enrollments').insert(newEnrollments.map(e => ({
+        id: e.id,
+        student_id: e.student_id,
+        course_id: e.course_id
+      })));
+      if (enrollError) {
+        console.error("Enrollment insert warning:", enrollError.message);
       }
     }
     
@@ -913,21 +908,15 @@ export default function App() {
     };
     
     if (isSupabaseConfigured) {
-      try {
-        const dbRecord = {
-          id: newEnrollment.id,
-          student_id: newEnrollment.student_id,
-          course_id: newEnrollment.course_id
-        };
-        const { error } = await supabase.from('enrollments').insert([dbRecord]);
-        if (error) {
-          alert("Supabase Enrollment Error: " + error.message);
-          return;
-        }
-      } catch (err) {
-        console.error("Enrollment network error:", err);
-        // Clean warning fallback to local storage
-        alert("Supabase connection failed (Network Error). Saving enrollment locally in offline/sandbox mode.");
+      const dbRecord = {
+        id: newEnrollment.id,
+        student_id: newEnrollment.student_id,
+        course_id: newEnrollment.course_id
+      };
+      const { error } = await supabase.from('enrollments').insert([dbRecord]);
+      if (error) {
+        alert("Supabase Enrollment Error: " + error.message);
+        return;
       }
     }
     

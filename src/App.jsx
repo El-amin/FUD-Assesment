@@ -16,7 +16,8 @@ import {
   MapPin,
   Menu,
   Bell,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import QuizManager from './components/QuizManager';
@@ -34,6 +35,7 @@ import MaterialsManager from './components/MaterialsManager';
 import AnnouncementsForum from './components/AnnouncementsForum';
 import VirtualClassManager from './components/VirtualClassManager';
 import AttendanceManager from './components/AttendanceManager';
+import DiscussionForum from './components/DiscussionForum';
 
 // --- INITIAL SEED DATA FOR OFFLINE FALLBACK ---
 const INITIAL_COURSES = [
@@ -140,6 +142,8 @@ export default function App() {
   const [attendanceSessions, setAttendanceSessions] = useState(() => loadOffline('fud_assessment_attendance_sessions', []));
   const [attendanceRecords, setAttendanceRecords] = useState(() => loadOffline('fud_assessment_attendance_records', []));
   const [enrollments, setEnrollments] = useState(() => loadOffline('fud_assessment_enrollments', INITIAL_ENROLLMENTS));
+  const [discussionPosts, setDiscussionPosts] = useState(() => loadOffline('fud_assessment_discussion_posts', []));
+  const [discussionReplies, setDiscussionReplies] = useState(() => loadOffline('fud_assessment_discussion_replies', []));
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => loadOffline('fud_dismissed_anns', []));
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
@@ -225,6 +229,16 @@ export default function App() {
     if (isSupabaseConfigured) return;
     localStorage.setItem('fud_assessment_enrollments', JSON.stringify(enrollments));
   }, [enrollments]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_discussion_posts', JSON.stringify(discussionPosts));
+  }, [discussionPosts]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    localStorage.setItem('fud_assessment_discussion_replies', JSON.stringify(discussionReplies));
+  }, [discussionReplies]);
 
   // Auth local caching
   useEffect(() => {
@@ -396,6 +410,42 @@ export default function App() {
             enrolledAt: e.enrolled_at
           }));
           setEnrollments(mappedEnrollments);
+        }
+
+        // Fetch discussion posts
+        const { data: postsData, error: postsError } = await supabase.from('discussion_posts').select('*');
+        if (postsError) {
+          console.warn('discussion_posts table could not be fetched:', postsError.message);
+        } else if (postsData) {
+          const mappedPosts = postsData.map(p => ({
+            id: p.id,
+            courseId: p.course_id,
+            course_id: p.course_id,
+            userId: p.user_id,
+            user_id: p.user_id,
+            content: p.content,
+            createdAt: p.created_at,
+            created_at: p.created_at
+          }));
+          setDiscussionPosts(mappedPosts);
+        }
+
+        // Fetch discussion replies
+        const { data: repliesData, error: repliesError } = await supabase.from('discussion_replies').select('*');
+        if (repliesError) {
+          console.warn('discussion_replies table could not be fetched:', repliesError.message);
+        } else if (repliesData) {
+          const mappedReplies = repliesData.map(r => ({
+            id: r.id,
+            postId: r.post_id,
+            post_id: r.post_id,
+            userId: r.user_id,
+            user_id: r.user_id,
+            content: r.content,
+            createdAt: r.created_at,
+            created_at: r.created_at
+          }));
+          setDiscussionReplies(mappedReplies);
         }
       } catch (err) {
         console.error('Error fetching Supabase data, utilizing offline caches instead:', err);
@@ -1007,6 +1057,71 @@ export default function App() {
     triggerToast("Announcement removed.");
   };
 
+  const handleAddDiscussionPost = async (newPost) => {
+    if (isSupabaseConfigured) {
+      try {
+        const dbRecord = {
+          id: newPost.id,
+          course_id: newPost.courseId,
+          user_id: newPost.userId,
+          content: newPost.content
+        };
+        const { error } = await supabase.from('discussion_posts').insert([dbRecord]);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Supabase post error:", err);
+      }
+    }
+    setDiscussionPosts(prev => [...prev, newPost]);
+    triggerToast("Discussion post shared!");
+  };
+
+  const handleDeleteDiscussionPost = async (postId) => {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('discussion_posts').delete().eq('id', postId);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Supabase delete post error:", err);
+      }
+    }
+    setDiscussionPosts(prev => prev.filter(p => p.id !== postId));
+    setDiscussionReplies(prev => prev.filter(r => r.postId !== postId && r.post_id !== postId));
+    triggerToast("Discussion thread deleted.");
+  };
+
+  const handleAddDiscussionReply = async (newReply) => {
+    if (isSupabaseConfigured) {
+      try {
+        const dbRecord = {
+          id: newReply.id,
+          post_id: newReply.postId,
+          user_id: newReply.userId,
+          content: newReply.content
+        };
+        const { error } = await supabase.from('discussion_replies').insert([dbRecord]);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Supabase reply error:", err);
+      }
+    }
+    setDiscussionReplies(prev => [...prev, newReply]);
+    triggerToast("Comment added!");
+  };
+
+  const handleDeleteDiscussionReply = async (replyId) => {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('discussion_replies').delete().eq('id', replyId);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Supabase delete reply error:", err);
+      }
+    }
+    setDiscussionReplies(prev => prev.filter(r => r.id !== replyId));
+    triggerToast("Comment removed.");
+  };
+
   const handleAddVirtualClass = async (newClass) => {
     if (isSupabaseConfigured) {
       const dbClass = {
@@ -1310,6 +1425,15 @@ export default function App() {
               >
                 <Megaphone className="nav-icon" />
                 Announcements Forum
+              </a>
+            </li>
+            <li>
+              <a 
+                className={`nav-item ${currentTab === 'discussion' ? 'active' : ''}`}
+                onClick={() => { setCurrentTab('discussion'); setSidebarOpen(false); }}
+              >
+                <MessageSquare className="nav-icon" />
+                Discussion Forum
               </a>
             </li>
             <li>
@@ -1752,6 +1876,21 @@ export default function App() {
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
               activeCourseId={selectedCourseId}
+            />
+          )}
+
+          {currentTab === 'discussion' && (
+            <DiscussionForum 
+              currentRole={activeUser.id}
+              users={enrichedUsers}
+              activeCourseId={selectedCourseId}
+              courses={visibleCourses}
+              discussionPosts={discussionPosts}
+              discussionReplies={discussionReplies}
+              onAddPost={handleAddDiscussionPost}
+              onDeletePost={handleDeleteDiscussionPost}
+              onAddReply={handleAddDiscussionReply}
+              onDeleteReply={handleDeleteDiscussionReply}
             />
           )}
 

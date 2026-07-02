@@ -210,6 +210,24 @@ CREATE TABLE attendance_records (
     UNIQUE(session_id, student_id)
 );
 
+-- 12. Discussion Posts Table
+CREATE TABLE IF NOT EXISTS discussion_posts (
+    id VARCHAR(50) PRIMARY KEY,
+    course_id VARCHAR(50) NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 13. Discussion Replies Table
+CREATE TABLE IF NOT EXISTS discussion_replies (
+    id VARCHAR(50) PRIMARY KEY,
+    post_id VARCHAR(50) NOT NULL REFERENCES discussion_posts(id) ON DELETE CASCADE,
+    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Grant privileges for Anonymous and Authenticated users to query and insert into tables
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;

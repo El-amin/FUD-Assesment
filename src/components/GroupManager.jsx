@@ -8,7 +8,8 @@ export default function GroupManager({
   groups, 
   onAddGroup, 
   onUpdateGroup, 
-  onDeleteGroup 
+  onDeleteGroup,
+  enrollments = []
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -27,8 +28,14 @@ export default function GroupManager({
   const user = users.find(u => u.id === currentRole) || users[0];
   const isLecturer = user.role === 'lecturer';
 
-  // Filter students
-  const students = users.filter(u => u.role === 'student');
+  // Filter students enrolled in this course
+  const students = users.filter(u => {
+    if (u.role !== 'student') return false;
+    return enrollments.some(e => 
+      e.studentId === u.id && 
+      (e.courseId === selectedCourseId || e.course_id === selectedCourseId)
+    );
+  });
 
   // Find students not assigned to any group in this course
   const getUnassignedStudents = (excludeGroupId = null) => {

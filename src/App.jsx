@@ -1820,6 +1820,7 @@ export default function App() {
               onAddGroup={handleAddGroup}
               onUpdateGroup={handleUpdateGroup}
               onDeleteGroup={handleDeleteGroup}
+              enrollments={enrollments}
             />
           )}
 

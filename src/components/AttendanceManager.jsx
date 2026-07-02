@@ -54,6 +54,48 @@ export default function AttendanceManager({
     onToggleAttendanceSession(sessionId, !currentStatus);
   };
 
+  // Export roster as CSV (opens in Excel)
+  const handleExportCSV = (session, records) => {
+    if (!session || records.length === 0) return;
+    
+    // Define headers
+    const headers = ['Student Name', 'Reg Number', 'Check-in Timestamp', 'Latitude', 'Longitude', 'Device IP Address'];
+    
+    // Map records to CSV rows
+    const rows = records.map(r => {
+      const studentName = r.student_name || r.studentName || '';
+      const regNo = r.reg_no || r.regNo || '';
+      const timestamp = r.marked_at || r.markedAt || '';
+      const lat = r.gps_lat || r.gpsLat || 'Bypassed';
+      const lng = r.gps_lng || r.gpsLng || 'Bypassed';
+      const ip = r.ip_address || r.ipAddress || 'Unknown';
+      
+      return [
+        `"${studentName.replace(/"/g, '""')}"`,
+        `"${regNo.replace(/"/g, '""')}"`,
+        `"${timestamp}"`,
+        `"${lat}"`,
+        `"${lng}"`,
+        `"${ip}"`
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    
+    // Filename formatting
+    const safeTitle = session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    link.setAttribute('download', `Attendance_${safeTitle || 'roster'}.csv`);
+    
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Mark Attendance (Student)
   const handleMarkPresent = (session) => {
     setIsGettingLocation(true);
@@ -326,15 +368,49 @@ export default function AttendanceManager({
         {/* LECTURER RIGHT COLUMN: Student Logs for selected session */}
         {isLecturer && (
           <div className="card" style={{ padding: '24px' }}>
-            <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-title)' }}>
-                Roster Logs Roster Summary
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                {activeSessionIdForLogs 
-                  ? `Viewing entries for: "${attendanceSessions.find(s => s.id === activeSessionIdForLogs)?.title}"`
-                  : 'Select an attendance session from the left column to audit student check-in details.'}
-              </p>
+            <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-title)' }}>
+                  Roster Logs Roster Summary
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  {activeSessionIdForLogs 
+                    ? `Viewing entries for: "${attendanceSessions.find(s => s.id === activeSessionIdForLogs)?.title}"`
+                    : 'Select an attendance session from the left column to audit student check-in details.'}
+                </p>
+              </div>
+
+              {activeSessionIdForLogs && (() => {
+                const currentSession = attendanceSessions.find(s => s.id === activeSessionIdForLogs);
+                const isSessionActive = currentSession ? (currentSession.is_active !== false && currentSession.isActive !== false) : false;
+                const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
+                
+                if (!isSessionActive && records.length > 0) {
+                  return (
+                    <button
+                      onClick={() => handleExportCSV(currentSession, records)}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        height: '32px', 
+                        backgroundColor: '#107c41', 
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0 12px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                    >
+                      📥 Export to Excel
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {activeSessionIdForLogs ? (() => {

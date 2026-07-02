@@ -271,9 +271,10 @@ export default function App() {
             id: q.id,
             courseId: q.course_id,
             title: q.title,
-            questions: q.questions,
-            dueDate: q.due_date,
-            maxScore: q.max_score
+            description: q.description,
+            timeLimit: q.time_limit !== undefined ? q.time_limit : 10,
+            time_limit: q.time_limit !== undefined ? q.time_limit : 10,
+            questions: q.questions
           }));
           setQuizzes(mapped);
         }

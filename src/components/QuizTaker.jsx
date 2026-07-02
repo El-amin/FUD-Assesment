@@ -44,7 +44,7 @@ export default function QuizTaker({
     setActiveQuiz(quiz);
     setCurrentQuestionIdx(0);
     setAnswers({});
-    setTimeLeft(quiz.timeLimit * 60);
+    setTimeLeft((quiz.timeLimit || quiz.time_limit || 10) * 60);
     setQuizFinished(false);
     setGradedScore(null);
   };

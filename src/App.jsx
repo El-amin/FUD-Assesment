@@ -1059,17 +1059,20 @@ export default function App() {
 
   const handleAddDiscussionPost = async (newPost) => {
     if (isSupabaseConfigured) {
-      try {
-        const dbRecord = {
-          id: newPost.id,
-          course_id: newPost.courseId,
-          user_id: newPost.userId,
-          content: newPost.content
-        };
-        const { error } = await supabase.from('discussion_posts').insert([dbRecord]);
-        if (error) throw error;
-      } catch (err) {
-        console.error("Supabase post error:", err);
+      const dbRecord = {
+        id: newPost.id,
+        course_id: newPost.courseId,
+        user_id: newPost.userId,
+        content: newPost.content
+      };
+      const { error } = await supabase.from('discussion_posts').insert([dbRecord]);
+      if (error) {
+        let msg = `Supabase Add Post Error: ${error.message}`;
+        if (error.message.includes('row-level security') || error.code === '42501') {
+          msg += `\n\n💡 Action Required: Please run this in your Supabase SQL Editor to disable RLS:\nALTER TABLE discussion_posts DISABLE ROW LEVEL SECURITY;`;
+        }
+        alert(msg);
+        return;
       }
     }
     setDiscussionPosts(prev => [...prev, newPost]);
@@ -1078,11 +1081,10 @@ export default function App() {
 
   const handleDeleteDiscussionPost = async (postId) => {
     if (isSupabaseConfigured) {
-      try {
-        const { error } = await supabase.from('discussion_posts').delete().eq('id', postId);
-        if (error) throw error;
-      } catch (err) {
-        console.error("Supabase delete post error:", err);
+      const { error } = await supabase.from('discussion_posts').delete().eq('id', postId);
+      if (error) {
+        alert(`Supabase Delete Post Error: ${error.message}`);
+        return;
       }
     }
     setDiscussionPosts(prev => prev.filter(p => p.id !== postId));
@@ -1092,17 +1094,20 @@ export default function App() {
 
   const handleAddDiscussionReply = async (newReply) => {
     if (isSupabaseConfigured) {
-      try {
-        const dbRecord = {
-          id: newReply.id,
-          post_id: newReply.postId,
-          user_id: newReply.userId,
-          content: newReply.content
-        };
-        const { error } = await supabase.from('discussion_replies').insert([dbRecord]);
-        if (error) throw error;
-      } catch (err) {
-        console.error("Supabase reply error:", err);
+      const dbRecord = {
+        id: newReply.id,
+        post_id: newReply.postId,
+        user_id: newReply.userId,
+        content: newReply.content
+      };
+      const { error } = await supabase.from('discussion_replies').insert([dbRecord]);
+      if (error) {
+        let msg = `Supabase Add Reply Error: ${error.message}`;
+        if (error.message.includes('row-level security') || error.code === '42501') {
+          msg += `\n\n💡 Action Required: Please run this in your Supabase SQL Editor to disable RLS:\nALTER TABLE discussion_replies DISABLE ROW LEVEL SECURITY;`;
+        }
+        alert(msg);
+        return;
       }
     }
     setDiscussionReplies(prev => [...prev, newReply]);
@@ -1111,11 +1116,10 @@ export default function App() {
 
   const handleDeleteDiscussionReply = async (replyId) => {
     if (isSupabaseConfigured) {
-      try {
-        const { error } = await supabase.from('discussion_replies').delete().eq('id', replyId);
-        if (error) throw error;
-      } catch (err) {
-        console.error("Supabase delete reply error:", err);
+      const { error } = await supabase.from('discussion_replies').delete().eq('id', replyId);
+      if (error) {
+        alert(`Supabase Delete Reply Error: ${error.message}`);
+        return;
       }
     }
     setDiscussionReplies(prev => prev.filter(r => r.id !== replyId));

@@ -145,6 +145,7 @@ export default function App() {
   const [discussionPosts, setDiscussionPosts] = useState(() => loadOffline('fud_assessment_discussion_posts', []));
   const [discussionReplies, setDiscussionReplies] = useState(() => loadOffline('fud_assessment_discussion_replies', []));
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => loadOffline('fud_dismissed_anns', []));
+  const [dismissedDiscussions, setDismissedDiscussions] = useState(() => loadOffline('fud_dismissed_discussions', []));
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   // Auth States
@@ -239,6 +240,10 @@ export default function App() {
     if (isSupabaseConfigured) return;
     localStorage.setItem('fud_assessment_discussion_replies', JSON.stringify(discussionReplies));
   }, [discussionReplies]);
+
+  useEffect(() => {
+    localStorage.setItem('fud_dismissed_discussions', JSON.stringify(dismissedDiscussions));
+  }, [dismissedDiscussions]);
 
   // Auth local caching
   useEffect(() => {
@@ -1254,6 +1259,9 @@ export default function App() {
     });
   }) : [];
 
+  const studentDiscussions = isStudent ? discussionPosts.filter(p => visibleCourses.some(c => c.id === p.courseId || c.id === p.course_id)) : [];
+  const unreadDiscussions = isStudent ? studentDiscussions.filter(p => p.userId !== currentUser.id && p.user_id !== currentUser.id && !dismissedDiscussions.includes(p.id)) : [];
+
   const notificationsList = [];
 
   unreadAnns.forEach(a => {
@@ -1308,8 +1316,29 @@ export default function App() {
     });
   });
 
+  unreadDiscussions.forEach(p => {
+    const course = visibleCourses.find(c => c.id === p.courseId || c.id === p.course_id);
+    notificationsList.push({
+      id: p.id,
+      type: 'discussion',
+      title: 'New Discussion Post',
+      text: `Discussion in ${course ? course.code : 'Course'}: "${p.content.substring(0, 30)}${p.content.length > 30 ? '...' : ''}"`,
+      tab: 'discussion',
+      icon: 'MessageSquare',
+      color: 'rgba(59, 130, 246, 0.1)',
+      iconColor: 'var(--color-info)',
+      courseId: p.courseId || p.course_id
+    });
+  });
+
   const handleDismissAnnNotif = (annId) => {
     setDismissedAnnouncements([...dismissedAnnouncements, annId]);
+  };
+
+  const handleDismissDiscussionNotif = (postId) => {
+    if (!dismissedDiscussions.includes(postId)) {
+      setDismissedDiscussions([...dismissedDiscussions, postId]);
+    }
   };
 
   // Admin Dashboard Workspace
@@ -1622,6 +1651,12 @@ export default function App() {
                             key={item.id}
                             onClick={() => {
                               setCurrentTab(item.tab);
+                              if (item.courseId) {
+                                setSelectedCourseId(item.courseId);
+                              }
+                              if (item.type === 'discussion') {
+                                handleDismissDiscussionNotif(item.id);
+                              }
                               setNotifDropdownOpen(false);
                             }}
                             style={{
@@ -1653,6 +1688,7 @@ export default function App() {
                                 {item.icon === 'MapPin' && <MapPin size={16} />}
                                 {item.icon === 'Award' && <Award size={16} />}
                                 {item.icon === 'FileText' && <FileText size={16} />}
+                                {item.icon === 'MessageSquare' && <MessageSquare size={16} />}
                               </div>
 
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -1665,12 +1701,16 @@ export default function App() {
                               </div>
                             </div>
 
-                            {item.type === 'announcement' && (
+                            {(item.type === 'announcement' || item.type === 'discussion') && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDismissAnnNotif(item.id);
+                                  if (item.type === 'announcement') {
+                                    handleDismissAnnNotif(item.id);
+                                  } else if (item.type === 'discussion') {
+                                    handleDismissDiscussionNotif(item.id);
+                                  }
                                 }}
                                 style={{
                                   border: 'none',

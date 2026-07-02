@@ -252,6 +252,7 @@ export default function Gradebook({
       return {
         id: student.id,
         name: student.name,
+        regNo: student.email,
         groupName: student.groupName || 'No Group',
         tasks: tasksMap,
         totalObtained,
@@ -365,6 +366,7 @@ export default function Gradebook({
               <thead>
                 <tr>
                   <th>Student Name</th>
+                  <th>Registration Number</th>
                   <th>Group Circle</th>
                   {totalTasks.map(task => (
                     <th key={task.id} style={{ fontSize: '0.75rem', textAlign: 'center' }}>
@@ -381,6 +383,7 @@ export default function Gradebook({
                 {studentGradesMap.map(row => (
                   <tr key={row.id}>
                     <td style={{ fontWeight: '600' }}>{row.name}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.regNo}</td>
                     <td>
                       <span className="badge badge-gray">{row.groupName}</span>
                     </td>
@@ -424,7 +427,7 @@ export default function Gradebook({
 
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={totalTasks.length + 3} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                    <td colSpan={totalTasks.length + 4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
                       No students enrolled in this portal.
                     </td>
                   </tr>

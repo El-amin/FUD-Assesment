@@ -558,7 +558,7 @@ Possible Solutions:
         questions: newQuiz.questions
       }]);
       if (error) {
-        alert("Supabase SQL Write Error: " + error.message);
+        alert(formatDbError("Supabase SQL Write Error", error));
         return;
       }
     }
@@ -579,7 +579,7 @@ Possible Solutions:
         is_group: newAssign.isGroup
       }]);
       if (error) {
-        alert("Supabase SQL Write Error: " + error.message);
+        alert(formatDbError("Supabase SQL Write Error", error));
         return;
       }
     }
@@ -601,7 +601,7 @@ Possible Solutions:
         })
         .eq('id', updatedAssign.id);
       if (error) {
-        alert("Supabase SQL Update Error: " + error.message);
+        alert(formatDbError("Supabase SQL Update Error", error));
         return;
       }
     }
@@ -1056,7 +1056,7 @@ Possible Solutions:
       };
       const { error } = await supabase.from('announcements').insert([dbAnn]);
       if (error) {
-        alert("Supabase Add Announcement Error: " + error.message);
+        alert(formatDbError("Supabase Add Announcement Error", error));
         return;
       }
     }
@@ -1068,7 +1068,7 @@ Possible Solutions:
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('announcements').delete().eq('id', annId);
       if (error) {
-        alert("Supabase Delete Announcement Error: " + error.message);
+        alert(formatDbError("Supabase Delete Announcement Error", error));
         return;
       }
     }
@@ -1287,7 +1287,8 @@ Possible Solutions:
       tab: 'forum',
       icon: 'Megaphone',
       color: 'rgba(10, 92, 54, 0.08)',
-      iconColor: 'var(--primary)'
+      iconColor: 'var(--primary)',
+      courseId: a.course_id || a.courseId
     });
   });
 
@@ -1300,7 +1301,8 @@ Possible Solutions:
       tab: 'attendance',
       icon: 'MapPin',
       color: 'rgba(234, 88, 12, 0.1)',
-      iconColor: 'var(--color-warning)'
+      iconColor: 'var(--color-warning)',
+      courseId: s.course_id || s.courseId
     });
   });
 
@@ -1313,7 +1315,8 @@ Possible Solutions:
       tab: 'quizzes',
       icon: 'Award',
       color: 'rgba(22, 163, 74, 0.1)',
-      iconColor: 'var(--primary)'
+      iconColor: 'var(--primary)',
+      courseId: q.courseId || q.course_id
     });
   });
 
@@ -1326,7 +1329,8 @@ Possible Solutions:
       tab: 'assignments',
       icon: 'FileText',
       color: 'rgba(59, 130, 246, 0.1)',
-      iconColor: 'var(--color-info)'
+      iconColor: 'var(--color-info)',
+      courseId: a.courseId || a.course_id
     });
   });
 

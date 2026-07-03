@@ -129,6 +129,20 @@ export default function App() {
     return saved ? JSON.parse(saved) : seed;
   };
 
+  const formatDbError = (context, error) => {
+    if (!error) return '';
+    const message = error.message || String(error);
+    if (message.toLowerCase().includes('failed to fetch') || message.toLowerCase().includes('networkerror') || message.toLowerCase().includes('typeerror')) {
+      return `⚠️ Network Connection Error: Could not connect to the Supabase database.
+      
+Possible Solutions:
+1. Check your internet connection.
+2. Disable any ad-blockers, tracker blockers, or VPNs/Shields on this site (e.g. Brave Shields, uBlock Origin) which may block supabase.co endpoints.
+3. Reload the portal and try again.`;
+    }
+    return `${context}: ${message}`;
+  };
+
   // State caches
   const [courses, setCourses] = useState(() => loadOffline('fud_assessment_courses', INITIAL_COURSES));
   const [users, setUsers] = useState(() => loadOffline('fud_assessment_users', INITIAL_USERS));
@@ -1173,7 +1187,7 @@ export default function App() {
       };
       const { error } = await supabase.from('attendance_sessions').insert([dbSession]);
       if (error) {
-        alert("Supabase Add Attendance Session Error: " + error.message);
+        alert(formatDbError("Supabase Add Attendance Session Error", error));
         return;
       }
     }
@@ -1188,7 +1202,7 @@ export default function App() {
         .update({ is_active: isActive })
         .eq('id', sessionId);
       if (error) {
-        alert("Supabase Toggle Attendance Error: " + error.message);
+        alert(formatDbError("Supabase Toggle Attendance Error", error));
         return;
       }
     }
@@ -1202,7 +1216,7 @@ export default function App() {
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('attendance_sessions').delete().eq('id', sessionId);
       if (error) {
-        alert("Supabase Delete Attendance Session Error: " + error.message);
+        alert(formatDbError("Supabase Delete Attendance Session Error", error));
         return;
       }
     }
@@ -1225,7 +1239,7 @@ export default function App() {
       };
       const { error } = await supabase.from('attendance_records').insert([dbRecord]);
       if (error) {
-        alert("Supabase Submit Attendance Error: " + error.message);
+        alert(formatDbError("Supabase Submit Attendance Error", error));
         return;
       }
     }

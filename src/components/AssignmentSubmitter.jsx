@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FileText, Calendar, Users, CheckCircle, Clock, Upload, ArrowRight, X, AlertTriangle } from 'lucide-react';
+import { FileText, Calendar, Users, CheckCircle, Clock, Upload, ArrowRight, X, AlertTriangle, Eye } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 export default function AssignmentSubmitter({ 
   assignments, 
@@ -13,6 +14,7 @@ export default function AssignmentSubmitter({
   const [submissionText, setSubmissionText] = useState('');
   const [attachmentName, setAttachmentName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [viewingAssignmentDetails, setViewingAssignmentDetails] = useState(null);
 
   const student = users.find(u => u.id === currentStudentId) || users[0];
   const studentGroupId = student.groupId;
@@ -132,7 +134,16 @@ export default function AssignmentSubmitter({
               </div>
 
               {/* Submission State Footer */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px' }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'black' }}
+                  onClick={() => setViewingAssignmentDetails(assign)}
+                >
+                  <Eye size={14} />
+                  View Questions
+                </button>
                 {status.noGroup ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-danger)', fontSize: '0.8rem', fontWeight: '600' }}>
@@ -320,6 +331,121 @@ export default function AssignmentSubmitter({
           </div>
         </div>
       )}
+
+      {/* Viewing Assignment Details Modal */}
+      {viewingAssignmentDetails && (() => {
+        const assign = viewingAssignmentDetails;
+        const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
+        const hasFile = assign.attachmentName || assign.attachment_name;
+        
+        return (
+          <div className="modal-overlay" onClick={() => setViewingAssignmentDetails(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="modal-header">
+                <div>
+                  <span className="badge badge-primary">{course ? course.code : 'General'}</span>
+                  <h3 style={{ fontSize: '1.25rem', marginTop: '4px' }}>Assignment: {assign.title}</h3>
+                </div>
+                <button className="modal-close" onClick={() => setViewingAssignmentDetails(null)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginTop: '14px' }}>
+                <div>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Description & Instructions
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', lineHeight: '1.5', margin: 0, color: 'var(--text-main)' }}>
+                    {assign.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Questions / Question Paper
+                  </h4>
+                  {assign.questions ? (
+                    <div style={{ 
+                      backgroundColor: 'var(--bg-app)', 
+                      padding: '16px', 
+                      borderRadius: 'var(--radius-md)', 
+                      border: '1px solid var(--border)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.5',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      marginBottom: hasFile ? '14px' : '0',
+                      textAlign: 'left'
+                    }}>
+                      {assign.questions}
+                    </div>
+                  ) : (
+                    !hasFile && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, textAlign: 'left' }}>No text questions typed. Please check the attached document below.</p>
+                  )}
+
+                  {hasFile && (() => {
+                    const fileName = assign.attachmentName || assign.attachment_name;
+                    let fileUrl = '#';
+                    if (isSupabaseConfigured) {
+                      const storagePath = `questions_${assign.id}.${fileName.split('.').pop()}`;
+                      const { data } = supabase.storage.from('submissions').getPublicUrl(storagePath);
+                      fileUrl = data?.publicUrl || '#';
+                    }
+                    
+                    return (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: '12px 16px', 
+                        backgroundColor: 'rgba(10, 92, 54, 0.05)', 
+                        border: '1px dashed var(--primary)', 
+                        borderRadius: 'var(--radius-md)',
+                        marginTop: '10px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '1.5rem' }}>📄</span>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--primary)' }}>{fileName}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Question Paper Document</div>
+                          </div>
+                        </div>
+                        {isSupabaseConfigured ? (
+                          <a 
+                            href={fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="btn btn-primary btn-sm"
+                            style={{ textDecoration: 'none', color: 'white' }}
+                          >
+                            Download File
+                          </a>
+                        ) : (
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => alert(`Offline Mode Demo: Downloading document "${fileName}"`)}
+                            style={{ color: 'white' }}
+                          >
+                            Download Mock
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '14px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <span>Deadline: <strong style={{ color: 'var(--color-warning)' }}>{assign.dueDate || assign.due_date}</strong></span>
+                  <span>Maximum Points: <strong>{assign.maxScore || assign.max_score}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

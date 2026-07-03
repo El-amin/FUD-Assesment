@@ -232,3 +232,8 @@ CREATE TABLE IF NOT EXISTS discussion_replies (
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
+-- Add new columns to assignments table for uploaded questions and instructions
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS questions TEXT;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(255);
+
+

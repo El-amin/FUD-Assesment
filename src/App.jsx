@@ -339,7 +339,9 @@ Possible Solutions:
             description: a.description,
             maxScore: a.max_score,
             dueDate: a.due_date,
-            isGroup: a.is_group
+            isGroup: a.is_group,
+            questions: a.questions || '',
+            attachmentName: a.attachment_name || ''
           }));
           setAssignments(mapped);
         }
@@ -567,7 +569,7 @@ Possible Solutions:
   };
 
   // 2. Add Assignment (Lecturer)
-  const handleAddAssignment = async (newAssign) => {
+  const handleAddAssignment = async (newAssign, fileObject) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('assignments').insert([{
         id: newAssign.id,
@@ -576,18 +578,35 @@ Possible Solutions:
         description: newAssign.description,
         max_score: newAssign.maxScore,
         due_date: newAssign.dueDate,
-        is_group: newAssign.isGroup
+        is_group: newAssign.isGroup,
+        questions: newAssign.questions || null,
+        attachment_name: newAssign.attachmentName || null
       }]);
       if (error) {
         alert(formatDbError("Supabase SQL Write Error", error));
         return;
+      }
+
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `questions_${newAssign.id}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          if (uploadError) {
+            console.warn("Storage Upload Error: " + uploadError.message);
+          }
+        } catch (err) {
+          console.warn("Storage Exception: ", err);
+        }
       }
     }
     setAssignments([...assignments, newAssign]);
     triggerToast(`Assignment "${newAssign.title}" published successfully!`);
   };
 
-  const handleUpdateAssignment = async (updatedAssign) => {
+  const handleUpdateAssignment = async (updatedAssign, fileObject) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase
         .from('assignments')
@@ -597,12 +616,29 @@ Possible Solutions:
           description: updatedAssign.description,
           max_score: updatedAssign.maxScore,
           due_date: updatedAssign.dueDate,
-          is_group: updatedAssign.isGroup
+          is_group: updatedAssign.isGroup,
+          questions: updatedAssign.questions || null,
+          attachment_name: updatedAssign.attachmentName || null
         })
         .eq('id', updatedAssign.id);
       if (error) {
         alert(formatDbError("Supabase SQL Update Error", error));
         return;
+      }
+
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `questions_${updatedAssign.id}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          if (uploadError) {
+            console.warn("Storage Upload Error: " + uploadError.message);
+          }
+        } catch (err) {
+          console.warn("Storage Exception: ", err);
+        }
       }
     }
     setAssignments(assignments.map(a => a.id === updatedAssign.id ? updatedAssign : a));

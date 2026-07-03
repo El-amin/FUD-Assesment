@@ -548,6 +548,10 @@ export default function AssignmentManager({
   const [courseId, setCourseId] = useState(courses[0]?.id || '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [questions, setQuestions] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentName, setAttachmentName] = useState('');
+  const [viewingAssignmentDetails, setViewingAssignmentDetails] = useState(null);
   const [maxScore, setMaxScore] = useState(100);
   const [dueDate, setDueDate] = useState('');
   const [isGroup, setIsGroup] = useState(false);
@@ -562,6 +566,9 @@ export default function AssignmentManager({
     setCourseId(courses[0]?.id || '');
     setTitle('');
     setDescription('');
+    setQuestions('');
+    setAttachmentFile(null);
+    setAttachmentName('');
     setMaxScore(100);
     setDueDate('');
     setIsGroup(false);
@@ -574,6 +581,9 @@ export default function AssignmentManager({
     setCourseId(assign.courseId);
     setTitle(assign.title);
     setDescription(assign.description || '');
+    setQuestions(assign.questions || '');
+    setAttachmentFile(null);
+    setAttachmentName(assign.attachmentName || '');
     setMaxScore(assign.maxScore);
     setDueDate(assign.dueDate);
     setIsGroup(assign.isGroup);
@@ -584,6 +594,9 @@ export default function AssignmentManager({
   const handleCloseCreateModal = () => {
     setTitle('');
     setDescription('');
+    setQuestions('');
+    setAttachmentFile(null);
+    setAttachmentName('');
     setMaxScore(100);
     setDueDate('');
     setIsGroup(false);
@@ -612,27 +625,34 @@ export default function AssignmentManager({
         courseId,
         title,
         description,
+        questions,
+        attachmentName: attachmentFile ? attachmentFile.name : attachmentName,
         maxScore: parseInt(maxScore),
         dueDate,
         isGroup
       };
-      onUpdateAssignment(updatedAssignment);
+      onUpdateAssignment(updatedAssignment, attachmentFile);
     } else {
       const newAssignment = {
         id: 'assign_' + Date.now().toString(),
         courseId,
         title,
         description,
+        questions,
+        attachmentName: attachmentFile ? attachmentFile.name : '',
         maxScore: parseInt(maxScore),
         dueDate,
         isGroup
       };
-      onAddAssignment(newAssignment);
+      onAddAssignment(newAssignment, attachmentFile);
     }
 
     // Reset Form
     setTitle('');
     setDescription('');
+    setQuestions('');
+    setAttachmentFile(null);
+    setAttachmentName('');
     setMaxScore(100);
     setDueDate('');
     setIsGroup(false);
@@ -726,7 +746,7 @@ export default function AssignmentManager({
                   <span>Pending: <strong style={{ color: pendingCount > 0 ? 'var(--color-warning)' : 'inherit' }}>{pendingCount}</strong></span>
                   <span>Graded: <strong>{gradedCount}</strong></span>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <button 
                     className="btn btn-outline btn-sm" 
                     style={{ flexGrow: 1 }}
@@ -743,6 +763,14 @@ export default function AssignmentManager({
                     Edit
                   </button>
                 </div>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  onClick={() => setViewingAssignmentDetails(assign)}
+                >
+                  <Eye size={14} />
+                  View Questions
+                </button>
               </div>
             </div>
           );
@@ -1010,6 +1038,55 @@ export default function AssignmentManager({
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Assignment Questions (Text)</label>
+                <textarea 
+                  className="form-textarea" 
+                  placeholder="Type the assignment questions directly here..." 
+                  value={questions}
+                  onChange={e => setQuestions(e.target.value)}
+                  style={{ minHeight: '100px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Upload Question Paper File (Optional)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                  <input 
+                    type="file" 
+                    id="question-file-upload" 
+                    onChange={e => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setAttachmentFile(file);
+                        setAttachmentName(file.name);
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="question-file-upload" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0, color: 'black' }}>
+                    <Upload size={14} />
+                    Choose File
+                  </label>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {attachmentFile ? attachmentFile.name : (attachmentName || 'No file selected')}
+                  </span>
+                  {(attachmentFile || attachmentName) && (
+                    <button 
+                      type="button" 
+                      className="btn btn-sm btn-outline btn-danger" 
+                      onClick={() => {
+                        setAttachmentFile(null);
+                        setAttachmentName('');
+                      }}
+                      style={{ padding: '2px 8px', height: '32px', color: 'var(--color-danger)', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Maximum Points</label>
@@ -1066,6 +1143,120 @@ export default function AssignmentManager({
           </div>
         </div>
       )}
+
+      {/* Viewing Assignment Details Modal */}
+      {viewingAssignmentDetails && (() => {
+        const assign = viewingAssignmentDetails;
+        const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
+        const hasFile = assign.attachmentName || assign.attachment_name;
+        
+        return (
+          <div className="modal-overlay" onClick={() => setViewingAssignmentDetails(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="modal-header">
+                <div>
+                  <span className="badge badge-primary">{course ? course.code : 'General'}</span>
+                  <h3 style={{ fontSize: '1.25rem', marginTop: '4px' }}>Assignment: {assign.title}</h3>
+                </div>
+                <button className="modal-close" onClick={() => setViewingAssignmentDetails(null)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginTop: '14px' }}>
+                <div>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Description & Instructions
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', lineHeight: '1.5', margin: 0, color: 'var(--text-main)' }}>
+                    {assign.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                  <h4 style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Questions / Question Paper
+                  </h4>
+                  {assign.questions ? (
+                    <div style={{ 
+                      backgroundColor: 'var(--bg-app)', 
+                      padding: '16px', 
+                      borderRadius: 'var(--radius-md)', 
+                      border: '1px solid var(--border)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.5',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      marginBottom: hasFile ? '14px' : '0'
+                    }}>
+                      {assign.questions}
+                    </div>
+                  ) : (
+                    !hasFile && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>No text questions typed. Please check the attached document below.</p>
+                  )}
+
+                  {hasFile && (() => {
+                    const fileName = assign.attachmentName || assign.attachment_name;
+                    let fileUrl = '#';
+                    if (isSupabaseConfigured) {
+                      const storagePath = `questions_${assign.id}.${fileName.split('.').pop()}`;
+                      const { data } = supabase.storage.from('submissions').getPublicUrl(storagePath);
+                      fileUrl = data?.publicUrl || '#';
+                    }
+                    
+                    return (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: '12px 16px', 
+                        backgroundColor: 'rgba(10, 92, 54, 0.05)', 
+                        border: '1px dashed var(--primary)', 
+                        borderRadius: 'var(--radius-md)',
+                        marginTop: '10px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '1.5rem' }}>📄</span>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--primary)' }}>{fileName}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Question Paper Document</div>
+                          </div>
+                        </div>
+                        {isSupabaseConfigured ? (
+                          <a 
+                            href={fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="btn btn-primary btn-sm"
+                            style={{ textDecoration: 'none', color: 'white' }}
+                          >
+                            Download File
+                          </a>
+                        ) : (
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => alert(`Offline Mode Demo: Downloading document "${fileName}"`)}
+                            style={{ color: 'white' }}
+                          >
+                            Download Mock
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '14px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <span>Deadline: <strong style={{ color: 'var(--color-warning)' }}>{assign.dueDate || assign.due_date}</strong></span>
+                  <span>Maximum Points: <strong>{assign.maxScore || assign.max_score}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

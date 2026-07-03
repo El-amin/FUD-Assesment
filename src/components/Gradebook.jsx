@@ -8,7 +8,8 @@ export default function Gradebook({
   quizzes, 
   assignments, 
   submissions,
-  initialCourseId
+  initialCourseId,
+  enrollments = []
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const user = users.find(u => u.id === currentRole) || users[0];
@@ -204,8 +205,65 @@ export default function Gradebook({
 
   // --- LECTURER ROSTER LOGIC WITH CSV EXPORT ---
   const renderLecturerGradebook = () => {
-    // List all students
-    const students = users.filter(u => u.role === 'student');
+    if (courses.length === 0) {
+      return (
+        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+          <Award size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px', opacity: 0.7 }} />
+          <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-title)', marginBottom: '8px' }}>
+            No Active Courses Found
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto' }}>
+            You must create a course and have at least one student enrolled before you can view a gradebook roster.
+          </p>
+        </div>
+      );
+    }
+
+    // List only students enrolled in this course
+    const students = users.filter(u => {
+      if (u.role !== 'student') return false;
+      return enrollments.some(e => 
+        e.studentId === u.id && 
+        (e.courseId === selectedCourseId || e.course_id === selectedCourseId)
+      );
+    });
+
+    if (students.length === 0) {
+      const activeCourse = courses.find(c => c.id === selectedCourseId);
+      return (
+        <div>
+          {/* Header course selection */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>Gradebook Roster</h2>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                Review aggregated academic scores across quizzes and assignments for all registered students.
+              </p>
+            </div>
+            <select 
+              className="form-select" 
+              value={selectedCourseId} 
+              onChange={e => setSelectedCourseId(e.target.value)}
+              style={{ width: '220px' }}
+            >
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>{course.code} - {course.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+            <BookOpen size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px', opacity: 0.7 }} />
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-title)', marginBottom: '8px' }}>
+              No Enrolled Students: {activeCourse ? activeCourse.code : ''}
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto' }}>
+              There are currently no students enrolled in this course. At least one student must enroll in this course before you can view the gradebook roster.
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     // List all quizzes and assignments in selected course
     const courseQuizzes = quizzes.filter(q => q.courseId === selectedCourseId);

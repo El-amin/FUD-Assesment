@@ -382,9 +382,10 @@ export default function AttendanceManager({
 
               {activeSessionIdForLogs && (() => {
                 const currentSession = attendanceSessions.find(s => s.id === activeSessionIdForLogs);
+                const isSessionActive = currentSession ? (currentSession.is_active !== false && currentSession.isActive !== false) : false;
                 const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
                 
-                if (records.length > 0) {
+                if (!isSessionActive && records.length > 0) {
                   return (
                     <button
                       onClick={() => handleExportCSV(currentSession, records)}

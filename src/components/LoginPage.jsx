@@ -193,7 +193,7 @@ export default function LoginPage({ users, onLogin, onChangePassword, dbError })
             </div>
 
             {/* DB Error Instruction Alert Banner */}
-            {isSupabaseConfigured && dbError && (
+            {dbError && (
               <div style={{
                 padding: '12px 14px',
                 backgroundColor: 'rgba(220, 38, 38, 0.08)',

@@ -124,10 +124,6 @@ const INITIAL_ENROLLMENTS = [
 ];
 
 export default function App() {
-  const loadOffline = (key, seed) => {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : seed;
-  };
 
   const formatDbError = (context, error) => {
     if (!error) return '';
@@ -144,22 +140,22 @@ Possible Solutions:
   };
 
   // State caches
-  const [courses, setCourses] = useState(() => loadOffline('fud_assessment_courses', INITIAL_COURSES));
-  const [users, setUsers] = useState(() => loadOffline('fud_assessment_users', INITIAL_USERS));
-  const [quizzes, setQuizzes] = useState(() => loadOffline('fud_assessment_quizzes', INITIAL_QUIZZES));
-  const [assignments, setAssignments] = useState(() => loadOffline('fud_assessment_assignments', INITIAL_ASSIGNMENTS));
-  const [submissions, setSubmissions] = useState(() => loadOffline('fud_assessment_submissions', INITIAL_SUBMISSIONS));
-  const [groups, setGroups] = useState(() => loadOffline('fud_assessment_groups', INITIAL_GROUPS));
-  const [materials, setMaterials] = useState(() => loadOffline('fud_assessment_materials', []));
-  const [announcements, setAnnouncements] = useState(() => loadOffline('fud_assessment_announcements', []));
-  const [virtualClasses, setVirtualClasses] = useState(() => loadOffline('fud_assessment_virtual_classes', []));
-  const [attendanceSessions, setAttendanceSessions] = useState(() => loadOffline('fud_assessment_attendance_sessions', []));
-  const [attendanceRecords, setAttendanceRecords] = useState(() => loadOffline('fud_assessment_attendance_records', []));
-  const [enrollments, setEnrollments] = useState(() => loadOffline('fud_assessment_enrollments', INITIAL_ENROLLMENTS));
-  const [discussionPosts, setDiscussionPosts] = useState(() => loadOffline('fud_assessment_discussion_posts', []));
-  const [discussionReplies, setDiscussionReplies] = useState(() => loadOffline('fud_assessment_discussion_replies', []));
-  const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => loadOffline('fud_dismissed_anns', []));
-  const [dismissedDiscussions, setDismissedDiscussions] = useState(() => loadOffline('fud_dismissed_discussions', []));
+  const [courses, setCourses] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [virtualClasses, setVirtualClasses] = useState([]);
+  const [attendanceSessions, setAttendanceSessions] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [discussionPosts, setDiscussionPosts] = useState([]);
+  const [discussionReplies, setDiscussionReplies] = useState([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState([]);
+  const [dismissedDiscussions, setDismissedDiscussions] = useState([]);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   // Auth States
@@ -179,81 +175,14 @@ Possible Solutions:
   });
 
   const [currentTab, setCurrentTab] = useState('dashboard'); // dashboard, quizzes, assignments, gradebook, groups
-  const [selectedCourseId, setSelectedCourseId] = useState(INITIAL_COURSES[0].id);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
   const [toast, setToast] = useState(null);
   const [dbError, setDbError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // --- 1. OFFLINE STORAGE SYNC EFFECTS ---
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_courses', JSON.stringify(courses));
-    localStorage.setItem('fud_assessment_users', JSON.stringify(users));
-  }, [courses, users]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_quizzes', JSON.stringify(quizzes));
-  }, [quizzes]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_assignments', JSON.stringify(assignments));
-  }, [assignments]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_submissions', JSON.stringify(submissions));
-  }, [submissions]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_groups', JSON.stringify(groups));
-  }, [groups]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_materials', JSON.stringify(materials));
-  }, [materials]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_announcements', JSON.stringify(announcements));
-  }, [announcements]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_virtual_classes', JSON.stringify(virtualClasses));
-  }, [virtualClasses]);
-
   useEffect(() => {
     localStorage.setItem('fud_dismissed_anns', JSON.stringify(dismissedAnnouncements));
   }, [dismissedAnnouncements]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_attendance_sessions', JSON.stringify(attendanceSessions));
-  }, [attendanceSessions]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_attendance_records', JSON.stringify(attendanceRecords));
-  }, [attendanceRecords]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_enrollments', JSON.stringify(enrollments));
-  }, [enrollments]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_discussion_posts', JSON.stringify(discussionPosts));
-  }, [discussionPosts]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) return;
-    localStorage.setItem('fud_assessment_discussion_replies', JSON.stringify(discussionReplies));
-  }, [discussionReplies]);
 
   useEffect(() => {
     localStorage.setItem('fud_dismissed_discussions', JSON.stringify(dismissedDiscussions));
@@ -291,6 +220,7 @@ Possible Solutions:
             lecturer_id: c.lecturer_id
           }));
           setCourses(mappedCourses);
+          setSelectedCourseId(prev => prev || mappedCourses[0]?.id || '');
         }
 
         // Fetch users
@@ -469,8 +399,8 @@ Possible Solutions:
           setDiscussionReplies(mappedReplies);
         }
       } catch (err) {
-        console.error('Error fetching Supabase data, utilizing offline caches instead:', err);
-        setDbError(err.message || JSON.stringify(err));
+        console.error('Error fetching Supabase data:', err);
+        setDbError(err);
       }
     };
 
@@ -1580,6 +1510,19 @@ Possible Solutions:
 
       {/* Main Content Area */}
       <main className="main-wrapper">
+        {dbError && (
+          <div style={{
+            padding: '12px 20px',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            borderBottom: '1px solid rgba(220, 38, 38, 0.15)',
+            color: 'var(--color-danger)',
+            fontSize: '0.85rem',
+            fontWeight: '600',
+            textAlign: 'center'
+          }}>
+            {formatDbError("Connection Failure", dbError)}
+          </div>
+        )}
         <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 

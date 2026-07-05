@@ -247,7 +247,8 @@ header {
   if (fileExt === 'pdf') {
     const getPdfUrl = () => {
       if (!isSupabaseConfigured) return null;
-      const path = `${submission.id}.${fileExt}`;
+      const originalExt = fileName.split('.').pop();
+      const path = `${submission.id}.${originalExt}`;
       const { data } = supabase.storage.from('submissions').getPublicUrl(path);
       return data?.publicUrl;
     };
@@ -320,7 +321,8 @@ header {
   if (fileExt === 'docx' || fileExt === 'doc') {
     const getDocxUrl = () => {
       if (!isSupabaseConfigured) return null;
-      const path = `${submission.id}.${fileExt}`;
+      const originalExt = fileName.split('.').pop();
+      const path = `${submission.id}.${originalExt}`;
       const { data } = supabase.storage.from('submissions').getPublicUrl(path);
       return data?.publicUrl;
     };
@@ -392,7 +394,8 @@ header {
     // Get live Supabase public URL
     const getImageUrl = () => {
       if (!isSupabaseConfigured) return null;
-      const path = `${submission.id}.${fileExt}`;
+      const originalExt = fileName.split('.').pop();
+      const path = `${submission.id}.${originalExt}`;
       const { data } = supabase.storage.from('submissions').getPublicUrl(path);
       return data?.publicUrl;
     };
@@ -475,7 +478,8 @@ function DocPreview({ fileName = '', submission, studentName }) {
   // Try retrieving the public Supabase URL for direct download
   const getStorageUrl = () => {
     if (!isSupabaseConfigured) return null;
-    const path = `${submission.id}.${fileExt}`;
+    const originalExt = fileName.split('.').pop();
+    const path = `${submission.id}.${originalExt}`;
     const { data } = supabase.storage.from('submissions').getPublicUrl(path);
     return data?.publicUrl;
   };

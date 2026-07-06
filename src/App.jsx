@@ -501,6 +501,23 @@ Possible Solutions:
   // 2. Add Assignment (Lecturer)
   const handleAddAssignment = async (newAssign, fileObject) => {
     if (isSupabaseConfigured) {
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `questions_${newAssign.id}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          if (uploadError) {
+            alert(formatDbError("Supabase Storage Upload Error: Your question paper could not be uploaded. Please ensure the file size is under 5MB.", uploadError));
+            return;
+          }
+        } catch (err) {
+          alert("Unexpected Storage Error: " + err.message);
+          return;
+        }
+      }
+
       const { error } = await supabase.from('assignments').insert([{
         id: newAssign.id,
         course_id: newAssign.courseId,
@@ -516,21 +533,6 @@ Possible Solutions:
         alert(formatDbError("Supabase SQL Write Error", error));
         return;
       }
-
-      if (fileObject) {
-        try {
-          const fileExt = fileObject.name.split('.').pop();
-          const storagePath = `questions_${newAssign.id}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
-            .from('submissions')
-            .upload(storagePath, fileObject, { upsert: true });
-          if (uploadError) {
-            console.warn("Storage Upload Error: " + uploadError.message);
-          }
-        } catch (err) {
-          console.warn("Storage Exception: ", err);
-        }
-      }
     }
     setAssignments([...assignments, newAssign]);
     triggerToast(`Assignment "${newAssign.title}" published successfully!`);
@@ -538,6 +540,23 @@ Possible Solutions:
 
   const handleUpdateAssignment = async (updatedAssign, fileObject) => {
     if (isSupabaseConfigured) {
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `questions_${updatedAssign.id}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          if (uploadError) {
+            alert(formatDbError("Supabase Storage Upload Error: Your question paper could not be uploaded. Please ensure the file size is under 5MB.", uploadError));
+            return;
+          }
+        } catch (err) {
+          alert("Unexpected Storage Error: " + err.message);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('assignments')
         .update({
@@ -554,21 +573,6 @@ Possible Solutions:
       if (error) {
         alert(formatDbError("Supabase SQL Update Error", error));
         return;
-      }
-
-      if (fileObject) {
-        try {
-          const fileExt = fileObject.name.split('.').pop();
-          const storagePath = `questions_${updatedAssign.id}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
-            .from('submissions')
-            .upload(storagePath, fileObject, { upsert: true });
-          if (uploadError) {
-            console.warn("Storage Upload Error: " + uploadError.message);
-          }
-        } catch (err) {
-          console.warn("Storage Exception: ", err);
-        }
       }
     }
     setAssignments(assignments.map(a => a.id === updatedAssign.id ? updatedAssign : a));
@@ -657,6 +661,24 @@ Possible Solutions:
     const subAt = new Date().toLocaleDateString();
 
     if (isSupabaseConfigured) {
+      if (fileObject) {
+        try {
+          const fileExt = fileObject.name.split('.').pop();
+          const storagePath = `${subId}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(storagePath, fileObject, { upsert: true });
+          
+          if (uploadError) {
+            alert(formatDbError("Supabase Storage Upload Error: Your submission file could not be uploaded. Please ensure the file size is under 5MB and check your network connection.", uploadError));
+            return;
+          }
+        } catch (err) {
+          alert("Unexpected Storage Error: " + err.message);
+          return;
+        }
+      }
+
       const sqlData = {
         id: subId,
         task_id: assignId,
@@ -680,31 +702,14 @@ Possible Solutions:
           })
           .eq('id', subId);
         if (error) {
-          alert("Supabase Update Error: " + error.message);
+          alert(formatDbError("Supabase Update Error", error));
           return;
         }
       } else {
         const { error } = await supabase.from('submissions').insert([sqlData]);
         if (error) {
-          alert("Supabase Insert Error: " + error.message);
+          alert(formatDbError("Supabase Insert Error", error));
           return;
-        }
-      }
-
-      // Upload file to Supabase storage bucket 'submissions' if fileObject is present
-      if (fileObject) {
-        try {
-          const fileExt = fileObject.name.split('.').pop();
-          const storagePath = `${subId}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
-            .from('submissions')
-            .upload(storagePath, fileObject, { upsert: true });
-          
-          if (uploadError) {
-            console.warn("Supabase Storage Upload: " + uploadError.message + ". Database record created, but verify a public bucket named 'submissions' exists in Supabase Storage settings.");
-          }
-        } catch (err) {
-          console.warn("Supabase Storage Upload Exception:", err);
         }
       }
     }

@@ -904,6 +904,27 @@ Possible Solutions:
     triggerToast(`User account removed.`);
   };
 
+  const handleUpdateUser = async (userId, updatedFields) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: updatedFields.name,
+          email: updatedFields.email,
+          password: updatedFields.password,
+          is_first_login: updatedFields.is_first_login !== undefined ? updatedFields.is_first_login : false
+        })
+        .eq('id', userId);
+      if (error) {
+        alert("Supabase Update User Error: " + error.message);
+        return false;
+      }
+    }
+    setUsers(users.map(u => u.id === userId ? { ...u, ...updatedFields } : u));
+    triggerToast(`User details updated successfully!`);
+    return true;
+  };
+
   const handleImportStudents = async (newStudents, targetCourseId) => {
     const newEnrollments = newStudents.map(student => ({
       id: `enroll_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -1341,6 +1362,7 @@ Possible Solutions:
         onAddUser={handleAddUser}
         onDeleteUser={handleDeleteUser}
         onSignOut={handleLogout}
+        onUpdateUser={handleUpdateUser}
       />
     );
   }

@@ -11,7 +11,9 @@ import {
   Sparkles,
   Layers,
   GraduationCap,
-  Menu
+  Menu,
+  Edit,
+  X
 } from 'lucide-react';
 
 export default function AdminDashboard({ 
@@ -21,6 +23,7 @@ export default function AdminDashboard({
   onDeleteCourse, 
   onAddUser, 
   onDeleteUser,
+  onUpdateUser,
   onSignOut 
 }) {
   const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'lecturers', 'students'
@@ -44,6 +47,12 @@ export default function AdminDashboard({
   
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Editing User State
+  const [editingUser, setEditingUser] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
 
   // Filtering lists based on search
   const filteredCourses = courses.filter(c => 
@@ -157,6 +166,36 @@ export default function AdminDashboard({
     setUserEmail('');
     setUserPassword('');
     setFormSuccess(`Successfully registered ${role === 'lecturer' ? 'lecturer' : 'student'} "${cleanName}"!`);
+  };
+
+  const handleOpenEditModal = (user) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditPassword(user.password || 'password123');
+  };
+
+  const handleSaveUserEdit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setFormSuccess('');
+
+    if (!editName.trim() || !editEmail.trim() || !editPassword.trim()) {
+      setFormError('Please fill out all fields.');
+      return;
+    }
+
+    const success = await onUpdateUser(editingUser.id, {
+      name: editName.trim(),
+      email: editEmail.trim().toLowerCase(),
+      password: editPassword.trim(),
+      avatar: getInitials(editName.trim())
+    });
+
+    if (success) {
+      setEditingUser(null);
+      setFormSuccess(`Successfully updated details for "${editName.trim()}"!`);
+    }
   };
 
   return (
@@ -501,7 +540,8 @@ export default function AdminDashboard({
                         <th style={{ textAlign: 'left', padding: '12px' }}>Avatar</th>
                         <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
                         <th style={{ textAlign: 'left', padding: '12px' }}>Email Address</th>
-                        <th style={{ textAlign: 'center', padding: '12px', width: '80px' }}>Actions</th>
+                        <th style={{ textAlign: 'left', padding: '12px' }}>Password</th>
+                        <th style={{ textAlign: 'center', padding: '12px', width: '100px' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -512,23 +552,33 @@ export default function AdminDashboard({
                           </td>
                           <td style={{ padding: '12px', fontWeight: 'bold' }}>{l.name}</td>
                           <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{l.email}</td>
+                          <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.85rem' }}>{l.password || 'password123'}</td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {l.id === 'lecturer_bello' ? (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
-                            ) : (
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                               <button 
-                                onClick={() => {
-                                  if(confirm(`Delete lecturer ${l.name}?`)) {
-                                    onDeleteUser(l.id);
-                                    setFormSuccess(`Lecturer "${l.name}" deleted.`);
-                                  }
-                                }}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                title="Delete Lecturer"
+                                onClick={() => handleOpenEditModal(l)}
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary)' }}
+                                title="Edit Details & Password"
                               >
-                                <Trash2 size={16} />
+                                <Edit size={16} />
                               </button>
-                            )}
+                              {l.id !== 'lecturer_bello' ? (
+                                <button 
+                                  onClick={() => {
+                                    if(confirm(`Delete lecturer ${l.name}?`)) {
+                                      onDeleteUser(l.id);
+                                      setFormSuccess(`Lecturer "${l.name}" deleted.`);
+                                    }
+                                  }}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
+                                  title="Delete Lecturer"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -551,7 +601,8 @@ export default function AdminDashboard({
                             <th style={{ textAlign: 'left', padding: '12px' }}>Avatar</th>
                             <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
                             <th style={{ textAlign: 'left', padding: '12px' }}>Registration Number</th>
-                            <th style={{ textAlign: 'center', padding: '12px', width: '80px' }}>Actions</th>
+                            <th style={{ textAlign: 'left', padding: '12px' }}>Password</th>
+                            <th style={{ textAlign: 'center', padding: '12px', width: '100px' }}>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -562,23 +613,33 @@ export default function AdminDashboard({
                               </td>
                               <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.name}</td>
                               <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{s.email}</td>
+                              <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.85rem' }}>{s.password || 'password123'}</td>
                               <td style={{ padding: '12px', textAlign: 'center' }}>
-                                {['student_aliyu', 'student_fatima', 'student_chidi'].includes(s.id) ? (
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
-                                ) : (
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                                   <button 
-                                    onClick={() => {
-                                      if(confirm(`Delete student ${s.name}?`)) {
-                                        onDeleteUser(s.id);
-                                        setFormSuccess(`Student "${s.name}" deleted.`);
-                                      }
-                                    }}
-                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                    title="Delete Student"
+                                    onClick={() => handleOpenEditModal(s)}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary)' }}
+                                    title="Edit Details & Password"
                                   >
-                                    <Trash2 size={16} />
+                                    <Edit size={16} />
                                   </button>
-                                )}
+                                  {!['student_aliyu', 'student_fatima', 'student_chidi'].includes(s.id) ? (
+                                    <button 
+                                      onClick={() => {
+                                        if(confirm(`Delete student ${s.name}?`)) {
+                                          onDeleteUser(s.id);
+                                          setFormSuccess(`Student "${s.name}" deleted.`);
+                                        }
+                                      }}
+                                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
+                                      title="Delete Student"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Seed User</span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -624,6 +685,67 @@ export default function AdminDashboard({
 
         </div>
       </main>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '1.25rem' }}>Edit {editingUser.role === 'lecturer' ? 'Lecturer' : 'Student'} Account</h3>
+              <button className="modal-close" onClick={() => setEditingUser(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '14px' }}>
+              <div className="form-group">
+                <label className="form-label">Full Name</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  {editingUser.role === 'lecturer' ? 'Academic Email' : 'Registration Number'}
+                </label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Account Password</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editPassword}
+                  onChange={e => setEditPassword(e.target.value)}
+                  placeholder="Reset password..."
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setEditingUser(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

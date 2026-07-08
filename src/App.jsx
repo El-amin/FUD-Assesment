@@ -1882,6 +1882,7 @@ Possible Solutions:
               assignments={assignments}
               submissions={submissions}
               initialCourseId={selectedCourseId}
+              enrollments={enrollments}
             />
           )}
 

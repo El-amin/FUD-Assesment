@@ -324,15 +324,12 @@ export default function Gradebook({
       const course = courses.find(c => c.id === selectedCourseId);
       const courseCode = course?.code || 'Course';
 
-      // Headers: Name, Matric Number (Email), Group, [Quizzes/Assignments...], Total Score, Overall Percentage (%)
+      // Headers: Name, Matric Number (Email), [Quizzes/Assignments...], Total Score
       const headers = [
         'Student Name',
         'Matric Number / Email',
-        'Group Circle',
         ...totalTasks.map(t => `${t.title} (${t.id.startsWith('quiz_') ? 'Quiz' : 'Assignment'})`),
-        'Total Score Obtained',
-        'Total Possible Score',
-        'Overall Percentage (%)'
+        'Total Score Obtained'
       ];
 
       // Rows
@@ -352,11 +349,8 @@ export default function Gradebook({
         return [
           row.name,
           studentObj?.email || '',
-          row.groupName,
           ...taskScores,
-          row.gradedTasksCount > 0 ? `${row.totalObtained}` : 'N/A',
-          row.gradedTasksCount > 0 ? `${row.totalMax}` : 'N/A',
-          row.gradedTasksCount > 0 ? `${Math.round((row.totalObtained/row.totalMax)*100)}%` : 'N/A'
+          row.gradedTasksCount > 0 ? `${row.totalObtained}` : 'N/A'
         ];
       });
 
@@ -425,7 +419,6 @@ export default function Gradebook({
                 <tr>
                   <th>Student Name</th>
                   <th>Registration Number</th>
-                  <th>Group Circle</th>
                   {totalTasks.map(task => (
                     <th key={task.id} style={{ fontSize: '0.75rem', textAlign: 'center' }}>
                       <div style={{ fontWeight: '800' }}>{task.title}</div>
@@ -442,9 +435,6 @@ export default function Gradebook({
                   <tr key={row.id}>
                     <td style={{ fontWeight: '600' }}>{row.name}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.regNo}</td>
-                    <td>
-                      <span className="badge badge-gray">{row.groupName}</span>
-                    </td>
                     {totalTasks.map(task => {
                       const grade = row.tasks[task.id];
                       if (!grade) return <td key={task.id} style={{ textAlign: 'center' }}>-</td>;
@@ -472,9 +462,8 @@ export default function Gradebook({
                     })}
                     <td style={{ textAlign: 'center', fontWeight: '800', backgroundColor: 'rgba(10, 92, 54, 0.02)' }}>
                       {row.gradedTasksCount > 0 ? (
-                        <span style={{ color: 'var(--primary)', fontSize: '1rem' }}>
-                          {row.totalObtained} / {row.totalMax}
-                          <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-muted)' }}> ({Math.round((row.totalObtained/row.totalMax)*100)}%)</span>
+                        <span style={{ color: 'var(--primary)', fontSize: '1rem', fontWeight: '800' }}>
+                          {row.totalObtained}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>-</span>
@@ -485,7 +474,7 @@ export default function Gradebook({
 
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={totalTasks.length + 4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                    <td colSpan={totalTasks.length + 3} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
                       No students enrolled in this portal.
                     </td>
                   </tr>

@@ -16,6 +16,16 @@ export default function AssignmentSubmitter({
   const [selectedFile, setSelectedFile] = useState(null);
   const [viewingAssignmentDetails, setViewingAssignmentDetails] = useState(null);
 
+  const isPastDue = (dueDateStr) => {
+    if (!dueDateStr) return false;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    return todayStr > dueDateStr;
+  };
+
   const student = users.find(u => u.id === currentStudentId) || users[0];
   const studentGroupId = student.groupId;
 
@@ -128,8 +138,13 @@ export default function AssignmentSubmitter({
                   {assign.description || 'Instructions uploaded by Dr. Bello.'}
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span>Deadline: <strong>{assign.dueDate || assign.due_date}</strong></span>
+                  <span>Deadline: <strong style={{ color: isPastDue(assign.dueDate || assign.due_date) ? 'var(--color-danger)' : 'inherit' }}>{assign.dueDate || assign.due_date}</strong></span>
                   <span>Max Points: <strong>{assign.maxScore || assign.max_score}</strong></span>
+                  {isPastDue(assign.dueDate || assign.due_date) && (
+                    <span style={{ color: 'var(--color-danger)', fontWeight: 'bold', fontSize: '0.75rem', marginTop: '2px' }}>
+                      ⚠️ Closed (Due date passed)
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -186,12 +201,22 @@ export default function AssignmentSubmitter({
                       )}
                     </div>
                     {!isGraded ? (
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => handleOpenSubmit(assign)}
-                      >
-                        Resubmit Work
-                      </button>
+                      isPastDue(assign.dueDate || assign.due_date) ? (
+                        <button 
+                          className="btn btn-outline btn-sm" 
+                          disabled
+                          style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        >
+                          🔒 Closed (Due Date Passed)
+                        </button>
+                      ) : (
+                        <button 
+                          className="btn btn-outline btn-sm" 
+                          onClick={() => handleOpenSubmit(assign)}
+                        >
+                          Resubmit Work
+                        </button>
+                      )
                     ) : (
                       <button 
                         className="btn btn-outline btn-sm" 
@@ -203,14 +228,24 @@ export default function AssignmentSubmitter({
                     )}
                   </div>
                 ) : (
-                  <button 
-                    className="btn btn-primary btn-sm" 
-                    style={{ width: '100%' }}
-                    onClick={() => handleOpenSubmit(assign)}
-                  >
-                    Submit Assignment
-                    <ArrowRight size={14} />
-                  </button>
+                  isPastDue(assign.dueDate || assign.due_date) ? (
+                    <button 
+                      className="btn btn-outline btn-sm" 
+                      disabled
+                      style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      ❌ Closed (Due Date Passed)
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      style={{ width: '100%' }}
+                      onClick={() => handleOpenSubmit(assign)}
+                    >
+                      Submit Assignment
+                      <ArrowRight size={14} />
+                    </button>
+                  )
                 )}
               </div>
             </div>

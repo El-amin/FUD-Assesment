@@ -59,9 +59,11 @@ export default function Gradebook({
     courseAssignments.forEach(assign => {
       let sub;
       if (assign.isGroup) {
-        sub = submissions.find(s => s.taskId === assign.id && s.isGroupSubmission && s.groupId === studentGroup);
+        const matches = submissions.filter(s => s.taskId === assign.id && s.isGroupSubmission && s.groupId === studentGroup);
+        sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
       } else {
-        sub = submissions.find(s => s.taskId === assign.id && s.studentId === studentId && s.type === 'assignment');
+        const matches = submissions.filter(s => s.taskId === assign.id && s.studentId === studentId && s.type === 'assignment');
+        sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
       }
 
       gradesList.push({
@@ -287,12 +289,14 @@ export default function Gradebook({
         if (task.id.startsWith('quiz_')) {
           sub = submissions.find(s => s.taskId === task.id && s.studentId === studentId && s.type === 'quiz');
         } else {
-          // Assignment
+          // Assignment (resilience to multiple submissions by preferring graded records)
           const isGroupAssign = assignments.find(a => a.id === task.id)?.isGroup;
           if (isGroupAssign) {
-            sub = submissions.find(s => s.taskId === task.id && s.isGroupSubmission && s.groupId === studentGroupId);
+            const matches = submissions.filter(s => s.taskId === task.id && s.isGroupSubmission && s.groupId === studentGroupId);
+            sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
           } else {
-            sub = submissions.find(s => s.taskId === task.id && s.studentId === studentId && s.type === 'assignment');
+            const matches = submissions.filter(s => s.taskId === task.id && s.studentId === studentId && s.type === 'assignment');
+            sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
           }
         }
 

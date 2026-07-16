@@ -692,9 +692,26 @@ export default function AssignmentManager({
     alert("Grade successfully applied!");
   };
 
-  // Get submissions for a specific assignment
+  // Get submissions for a specific assignment (resilient to duplicate student/group rows, keeping only the latest)
   const getSubmissionsForAssignment = (assignId) => {
-    return submissions.filter(sub => sub.taskId === assignId && sub.type === 'assignment');
+    const allSubs = submissions.filter(sub => sub.taskId === assignId && sub.type === 'assignment');
+    
+    // Sort descending by ID to ensure latest submissions are processed first
+    const sortedSubs = [...allSubs].sort((a, b) => b.id.localeCompare(a.id));
+    
+    const uniqueSubs = [];
+    const seen = new Set();
+    
+    for (const sub of sortedSubs) {
+      const key = sub.isGroupSubmission ? `group_${sub.groupId}` : `student_${sub.studentId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueSubs.push(sub);
+      }
+    }
+    
+    // Reverse it back to chronological order (earliest submissions first in UI list)
+    return uniqueSubs.reverse();
   };
 
   const handleOpenReviewPanel = (assign) => {

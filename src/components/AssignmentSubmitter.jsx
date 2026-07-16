@@ -16,6 +16,7 @@ export default function AssignmentSubmitter({
   const [attachmentName, setAttachmentName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [viewingAssignmentDetails, setViewingAssignmentDetails] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isPastDue = (dueDateStr) => {
     if (!dueDateStr) return false;
@@ -57,9 +58,10 @@ export default function AssignmentSubmitter({
       return { submitted: false };
     }
 
-    // Individual assignment check
-    const indSub = submissions.find(s => s.taskId === assign.id && (s.studentId === currentStudentId || s.student_id === currentStudentId) && s.type === 'assignment');
-    if (indSub) {
+    // Individual assignment check (resilience for double submissions: look for graded one first)
+    const studentSubs = submissions.filter(s => s.taskId === assign.id && (s.studentId === currentStudentId || s.student_id === currentStudentId) && s.type === 'assignment');
+    if (studentSubs.length > 0) {
+      const indSub = studentSubs.find(s => s.score !== undefined && s.score !== null) || studentSubs[studentSubs.length - 1];
       return { 
         submitted: true, 
         score: indSub.score, 
@@ -81,7 +83,7 @@ export default function AssignmentSubmitter({
     setSelectedFile(null);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
     if (!attachmentName) {
@@ -89,22 +91,30 @@ export default function AssignmentSubmitter({
       return;
     }
 
-    const courseId = submittingAssignment.courseId || submittingAssignment.course_id;
-    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
-    const targetGroupId = courseGroup ? courseGroup.id : null;
-    const targetGroupName = courseGroup ? courseGroup.name : 'No Group';
+    if (isUploading) return;
+    setIsUploading(true);
 
-    onSubmitAssignment(
-      submittingAssignment.id, 
-      submittingAssignment.isGroup || submittingAssignment.is_group,
-      targetGroupId,
-      targetGroupName,
-      attachmentName,
-      submissionText,
-      selectedFile
-    );
+    try {
+      const courseId = submittingAssignment.courseId || submittingAssignment.course_id;
+      const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+      const targetGroupId = courseGroup ? courseGroup.id : null;
+      const targetGroupName = courseGroup ? courseGroup.name : 'No Group';
 
-    setSubmittingAssignment(null);
+      await onSubmitAssignment(
+        submittingAssignment.id, 
+        submittingAssignment.isGroup || submittingAssignment.is_group,
+        targetGroupId,
+        targetGroupName,
+        attachmentName,
+        submissionText,
+        selectedFile
+      );
+      setSubmittingAssignment(null);
+    } catch (err) {
+      console.error("Submission failed:", err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const mockFileOptions = [
@@ -367,8 +377,8 @@ export default function AssignmentSubmitter({
                 <button type="button" className="btn btn-outline" onClick={() => setSubmittingAssignment(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Upload Submission
+                <button type="submit" className="btn btn-primary" disabled={isUploading}>
+                  {isUploading ? 'Uploading...' : 'Upload Submission'}
                 </button>
               </div>
             </form>

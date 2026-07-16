@@ -871,7 +871,7 @@ export default function AssignmentManager({
                     </div>
                   </div>
 
-                  {(() => {
+                   {(() => {
                     const filteredSubmissions = assignSubmissions.filter(sub => {
                       const studentObj = users.find(u => u.id === sub.studentId);
                       const sName = studentObj ? studentObj.name.toLowerCase() : '';
@@ -880,9 +880,18 @@ export default function AssignmentManager({
                       return sName.includes(q) || sEmail.includes(q) || (sub.groupName && sub.groupName.toLowerCase().includes(q));
                     });
 
+                    // Sort: Ungraded/Pending submissions first, Graded submissions last
+                    const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
+                      const aGraded = a.score !== undefined && a.score !== null;
+                      const bGraded = b.score !== undefined && b.score !== null;
+                      if (aGraded && !bGraded) return 1;
+                      if (!aGraded && bGraded) return -1;
+                      return 0;
+                    });
+
                     return (
                       <>
-                        {filteredSubmissions.map(sub => {
+                        {sortedSubmissions.map(sub => {
                           const studentObj = users.find(u => u.id === sub.studentId);
                           const isSelected = activeSubmission?.id === sub.id;
                           

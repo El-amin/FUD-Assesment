@@ -18,7 +18,8 @@ import {
   Folder,
   Layers,
   Sparkles,
-  Upload
+  Upload,
+  Search
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
@@ -544,6 +545,7 @@ export default function AssignmentManager({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAssignmentForReview, setSelectedAssignmentForReview] = useState(null);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [submissionSearch, setSubmissionSearch] = useState('');
   
   // Workspace Active Submissions (Null if none selected for preview/grading)
   const [activeSubmission, setActiveSubmission] = useState(null);
@@ -717,6 +719,7 @@ export default function AssignmentManager({
   const handleOpenReviewPanel = (assign) => {
     setSelectedAssignmentForReview(assign);
     setActiveSubmission(null); // Reset preview
+    setSubmissionSearch(''); // Reset search query
   };
 
   return (
@@ -831,70 +834,124 @@ export default function AssignmentManager({
                 
                 {/* LEFT COLUMN: Submissions List roster */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', borderRight: '1px solid var(--border)', paddingRight: '16px' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Student Submissions ({assignSubmissions.length})
-                  </h4>
-
-                  {assignSubmissions.map(sub => {
-                    const studentObj = users.find(u => u.id === sub.studentId);
-                    const isSelected = activeSubmission?.id === sub.id;
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+                      Student Submissions ({assignSubmissions.length})
+                    </h4>
                     
-                    // For group assignment, list group members
-                    const members = selectedAssignmentForReview.isGroup 
-                      ? users.filter(u => u.groupId === sub.groupId)
-                      : [];
+                    {/* Search Input Bar */}
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Search student or matric number..." 
+                        value={submissionSearch}
+                        onChange={e => setSubmissionSearch(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px 10px 36px',
+                          fontSize: '0.85rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--text-title)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <Search 
+                        size={16} 
+                        style={{ 
+                          position: 'absolute', 
+                          left: '12px', 
+                          top: '50%', 
+                          transform: 'translateY(-50%)', 
+                          color: 'var(--text-muted)' 
+                        }} 
+                      />
+                    </div>
+                  </div>
 
-                    const hasGrade = sub.score !== undefined && sub.score !== null;
+                  {(() => {
+                    const filteredSubmissions = assignSubmissions.filter(sub => {
+                      const studentObj = users.find(u => u.id === sub.studentId);
+                      const sName = studentObj ? studentObj.name.toLowerCase() : '';
+                      const sEmail = studentObj ? studentObj.email.toLowerCase() : '';
+                      const q = submissionSearch.toLowerCase().trim();
+                      return sName.includes(q) || sEmail.includes(q) || (sub.groupName && sub.groupName.toLowerCase().includes(q));
+                    });
 
                     return (
-                      <div 
-                        key={sub.id} 
-                        onClick={() => handleSelectActiveSubmission(sub)}
-                        style={{
-                          padding: '14px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid',
-                          borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
-                          backgroundColor: isSelected ? 'rgba(10, 92, 54, 0.03)' : 'var(--bg-card)',
-                          cursor: 'pointer',
-                          transition: 'all var(--transition-fast)',
-                          position: 'relative'
-                        }}
-                      >
-                        {isSelected && (
-                          <div style={{ width: '4px', position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: 'var(--primary)', borderTopLeftRadius: 'var(--radius-md)', borderBottomLeftRadius: 'var(--radius-md)' }} />
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-title)' }}>
-                            {studentObj?.name || 'Unknown'}
-                          </span>
-                          <span className={`badge ${hasGrade ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
-                            {hasGrade ? `${sub.score} / ${selectedAssignmentForReview.maxScore}` : 'Pending'}
-                          </span>
-                        </div>
+                      <>
+                        {filteredSubmissions.map(sub => {
+                          const studentObj = users.find(u => u.id === sub.studentId);
+                          const isSelected = activeSubmission?.id === sub.id;
+                          
+                          // For group assignment, list group members
+                          const members = selectedAssignmentForReview.isGroup 
+                            ? users.filter(u => u.groupId === sub.groupId)
+                            : [];
 
-                        {selectedAssignmentForReview.isGroup ? (
-                          <span className="badge badge-warning" style={{ fontSize: '0.65rem', marginBottom: '6px' }}>{sub.groupName}</span>
-                        ) : (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Individual</span>
+                          const hasGrade = sub.score !== undefined && sub.score !== null;
+
+                          return (
+                            <div 
+                              key={sub.id} 
+                              onClick={() => handleSelectActiveSubmission(sub)}
+                              style={{
+                                padding: '14px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid',
+                                borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                                backgroundColor: isSelected ? 'rgba(10, 92, 54, 0.03)' : 'var(--bg-card)',
+                                cursor: 'pointer',
+                                transition: 'all var(--transition-fast)',
+                                position: 'relative'
+                              }}
+                            >
+                              {isSelected && (
+                                <div style={{ width: '4px', position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: 'var(--primary)', borderTopLeftRadius: 'var(--radius-md)', borderBottomLeftRadius: 'var(--radius-md)' }} />
+                              )}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-title)' }}>
+                                  {studentObj?.name || 'Unknown'}
+                                </span>
+                                <span className={`badge ${hasGrade ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
+                                  {hasGrade ? `${sub.score} / ${selectedAssignmentForReview.maxScore}` : 'Pending'}
+                                </span>
+                              </div>
+
+                              {selectedAssignmentForReview.isGroup ? (
+                                <span className="badge badge-warning" style={{ fontSize: '0.65rem', marginBottom: '6px' }}>{sub.groupName}</span>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Individual</span>
+                              )}
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                                  📄 {sub.attachmentName || 'Submission.pdf'}
+                                </span>
+                                <span>{sub.submittedAt}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {assignSubmissions.length === 0 && (
+                          <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            <Clock size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
+                            <p>No submissions uploaded yet.</p>
+                          </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-                            📄 {sub.attachmentName || 'Submission.pdf'}
-                          </span>
-                          <span>{sub.submittedAt}</span>
-                        </div>
-                      </div>
+                        {assignSubmissions.length > 0 && filteredSubmissions.length === 0 && (
+                          <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            <AlertCircle size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
+                            <p>No submissions match your search.</p>
+                          </div>
+                        )}
+                      </>
                     );
-                  })}
-
-                  {assignSubmissions.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      <Clock size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
-                      <p>No submissions uploaded yet.</p>
-                    </div>
-                  )}
+                  })()}
                 </div>
 
                 {/* RIGHT COLUMN: Interactive Document Preview & Grade Form */}

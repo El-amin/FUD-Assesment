@@ -9,7 +9,8 @@ export default function Gradebook({
   assignments, 
   submissions,
   initialCourseId,
-  enrollments = []
+  enrollments = [],
+  groups = []
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const user = users.find(u => u.id === currentRole) || users[0];
@@ -21,10 +22,10 @@ export default function Gradebook({
     }
   }, [initialCourseId]);
 
-  // --- STUDENT GRADEBOOK LOGIC ---
   const renderStudentGradebook = () => {
     const studentId = user.id;
-    const studentGroup = user.groupId;
+    const courseGroup = groups.find(g => g.courseId === selectedCourseId && g.memberIds.includes(studentId));
+    const studentGroup = courseGroup ? courseGroup.id : null;
 
     // Compile all tasks (quizzes & assignments) associated with selected course
     const courseQuizzes = quizzes.filter(q => q.courseId === selectedCourseId);
@@ -273,7 +274,8 @@ export default function Gradebook({
     // Build the grid roster
     const studentGradesMap = students.map(student => {
       const studentId = student.id;
-      const studentGroupId = student.groupId;
+      const courseGroup = groups.find(g => g.courseId === selectedCourseId && g.memberIds.includes(studentId));
+      const studentGroupId = courseGroup ? courseGroup.id : null;
 
       const tasksMap = {};
       let totalObtained = 0;

@@ -7,6 +7,7 @@ export default function AssignmentSubmitter({
   submissions, 
   courses, 
   users, 
+  groups = [],
   currentStudentId, 
   onSubmitAssignment 
 }) {
@@ -27,17 +28,20 @@ export default function AssignmentSubmitter({
   };
 
   const student = users.find(u => u.id === currentStudentId) || users[0];
-  const studentGroupId = student.groupId;
 
   // Retrieve submission details if already made
   const getSubmissionStatus = (assign) => {
     const isGroup = assign.isGroup || assign.is_group;
+    const courseId = assign.courseId || assign.course_id;
+    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+    const targetGroupId = courseGroup ? courseGroup.id : null;
+
     // If it is a group assignment, check if anyone from the same group submitted
     if (isGroup) {
-      if (!studentGroupId) {
+      if (!targetGroupId) {
         return { submitted: false, noGroup: true };
       }
-      const groupSub = submissions.find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === studentGroupId);
+      const groupSub = submissions.find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === targetGroupId);
       if (groupSub) {
         const submitter = users.find(u => u.id === groupSub.studentId || u.id === groupSub.student_id);
         return { 
@@ -85,11 +89,16 @@ export default function AssignmentSubmitter({
       return;
     }
 
+    const courseId = submittingAssignment.courseId || submittingAssignment.course_id;
+    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+    const targetGroupId = courseGroup ? courseGroup.id : null;
+    const targetGroupName = courseGroup ? courseGroup.name : 'No Group';
+
     onSubmitAssignment(
       submittingAssignment.id, 
-      submittingAssignment.isGroup,
-      studentGroupId,
-      student.groupName,
+      submittingAssignment.isGroup || submittingAssignment.is_group,
+      targetGroupId,
+      targetGroupName,
       attachmentName,
       submissionText,
       selectedFile

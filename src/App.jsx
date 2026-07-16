@@ -1889,6 +1889,7 @@ Possible Solutions:
                 submissions={submissions}
                 courses={courses}
                 users={enrichedUsers}
+                groups={groups}
                 currentStudentId={activeUserEnriched.id}
                 onSubmitAssignment={handleSubmitAssignment}
               />
@@ -1905,6 +1906,7 @@ Possible Solutions:
               submissions={submissions}
               initialCourseId={selectedCourseId}
               enrollments={enrollments}
+              groups={groups}
             />
           )}
 

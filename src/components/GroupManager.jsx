@@ -586,7 +586,7 @@ export default function GroupManager({
                 </div>
 
                 <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  For group assignments, only the Group Leader can submit files. The grade applied by Dr. Bello will automatically synchronize to all members.
+                  For group assignments, only the Group Leader can submit files. The grade applied by the Lecturer will automatically synchronize to all members.
                 </div>
               </div>
             </div>
@@ -599,7 +599,7 @@ export default function GroupManager({
               You are currently not enrolled in any student project group for this course.
             </p>
             <div style={{ fontSize: '0.8rem', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
-              Please contact your course lecturer (Dr. Bello) to add you to a group circle.
+              Please contact your course lecturer to add you to a group circle.
             </div>
           </div>
         )}

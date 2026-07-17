@@ -164,7 +164,7 @@ export default function AssignmentSubmitter({
                 </div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px' }}>{assign.title}</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {assign.description || 'Instructions uploaded by Dr. Bello.'}
+                  {assign.description || 'Instructions uploaded by the course lecturer.'}
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span>Deadline: <strong style={{ color: isPastDue(assign.dueDate || assign.due_date) ? 'var(--color-danger)' : 'inherit' }}>{assign.dueDate || assign.due_date}</strong></span>

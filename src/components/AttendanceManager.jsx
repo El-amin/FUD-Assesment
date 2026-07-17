@@ -22,7 +22,9 @@ export default function AttendanceManager({
   const [topic, setTopic] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
   const [activeSessionIdForLogs, setActiveSessionIdForLogs] = useState(null);
-  const [manualStudentId, setManualStudentId] = useState('');
+  const [manualSearchQuery, setManualSearchQuery] = useState('');
+  const [selectedStudentForManual, setSelectedStudentForManual] = useState(null);
+  const [showManualDropdown, setShowManualDropdown] = useState(false);
 
   // Student Location Retrieval States
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -182,8 +184,7 @@ export default function AttendanceManager({
     setManualGpsInput(false);
   };
 
-  const handleMarkManualAttendance = (studentId, sessionId) => {
-    const student = users.find(u => u.id === studentId);
+  const handleMarkManualAttendance = (student, sessionId) => {
     if (!student) return;
     
     const newRecord = {
@@ -207,7 +208,9 @@ export default function AttendanceManager({
     };
     
     onMarkAttendance(newRecord);
-    setManualStudentId('');
+    setManualSearchQuery('');
+    setSelectedStudentForManual(null);
+    alert(`${student.name} marked present manually!`);
   };
 
   const handleManualSubmit = (e, sessionId) => {
@@ -462,44 +465,135 @@ export default function AttendanceManager({
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* Manual check-in section for lecturer */}
-                  {isLecturer && (
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '12px', 
-                      padding: '14px', 
-                      backgroundColor: 'rgba(10, 92, 54, 0.04)', 
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px dashed var(--primary)',
-                      flexWrap: 'wrap'
-                    }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-title)' }}>
-                        Manual Check-in:
-                      </span>
-                      <select 
-                        className="form-input" 
-                        style={{ maxWidth: '300px', padding: '6px 12px', fontSize: '0.85rem', margin: 0 }} 
-                        value={manualStudentId} 
-                        onChange={e => setManualStudentId(e.target.value)}
-                      >
-                        <option value="">-- Select Student --</option>
-                        {absentStudents.map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
-                        ))}
-                      </select>
-                      <button 
-                        className="btn btn-primary btn-sm" 
-                        disabled={!manualStudentId}
-                        onClick={() => handleMarkManualAttendance(manualStudentId, activeSessionIdForLogs)}
-                        style={{ padding: '6px 16px', fontSize: '0.8rem' }}
-                      >
-                        Mark Present
-                      </button>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        * For students without smartphones/charge
-                      </span>
-                    </div>
-                  )}
+                  {isLecturer && (() => {
+                    const matchedAbsent = manualSearchQuery.trim() && !selectedStudentForManual
+                      ? absentStudents.filter(s => 
+                          s.name.toLowerCase().includes(manualSearchQuery.toLowerCase()) || 
+                          s.email.toLowerCase().includes(manualSearchQuery.toLowerCase())
+                        )
+                      : [];
+
+                    return (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px', 
+                        padding: '14px', 
+                        backgroundColor: 'rgba(10, 92, 54, 0.04)', 
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px dashed var(--primary)',
+                        flexWrap: 'wrap',
+                        position: 'relative'
+                      }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-title)' }}>
+                          Manual Check-in:
+                        </span>
+                        
+                        {/* Search Input Container */}
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <input 
+                            type="text"
+                            className="form-input"
+                            placeholder="Type student name or reg number..."
+                            style={{ width: '320px', padding: '8px 30px 8px 12px', fontSize: '0.85rem', margin: 0 }}
+                            value={manualSearchQuery}
+                            onChange={e => {
+                              setManualSearchQuery(e.target.value);
+                              setSelectedStudentForManual(null);
+                              setShowManualDropdown(true);
+                            }}
+                            onFocus={() => setShowManualDropdown(true)}
+                          />
+                          
+                          {manualSearchQuery && (
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setManualSearchQuery('');
+                                setSelectedStudentForManual(null);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          )}
+
+                          {/* Autocomplete Dropdown Panel */}
+                          {showManualDropdown && manualSearchQuery.trim() && !selectedStudentForManual && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              top: '100%', 
+                              left: 0, 
+                              right: 0, 
+                              maxHeight: '200px', 
+                              overflowY: 'auto', 
+                              backgroundColor: 'var(--bg-card)', 
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-sm)',
+                              boxShadow: 'var(--shadow-lg)',
+                              zIndex: 1000,
+                              marginTop: '4px'
+                            }}>
+                              {matchedAbsent.map(s => (
+                                <div 
+                                  key={s.id} 
+                                  onClick={() => {
+                                    setSelectedStudentForManual(s);
+                                    setManualSearchQuery(`${s.name} (${s.email})`);
+                                    setShowManualDropdown(false);
+                                  }}
+                                  style={{ 
+                                    padding: '8px 12px', 
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    borderBottom: '1px solid var(--border)',
+                                    transition: 'background-color 0.2s',
+                                    color: 'var(--text-title)',
+                                    textAlign: 'left'
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(10, 92, 54, 0.08)'}
+                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                >
+                                  <div style={{ fontWeight: 'bold' }}>{s.name}</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.email}</div>
+                                </div>
+                              ))}
+                              {matchedAbsent.length === 0 && (
+                                <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                  No absent students match search
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <button 
+                          type="button"
+                          className="btn btn-primary btn-sm" 
+                          disabled={!selectedStudentForManual}
+                          onClick={() => handleMarkManualAttendance(selectedStudentForManual, activeSessionIdForLogs)}
+                          style={{ padding: '8px 16px', fontSize: '0.8rem', height: '36px' }}
+                        >
+                          Mark Present
+                        </button>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          * For students without smartphones/charge
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>

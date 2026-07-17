@@ -277,16 +277,17 @@ export default function GroupManager({
                     className="form-select" 
                     value={leaderId}
                     onChange={e => {
-                      setLeaderId(e.target.value);
+                      const val = e.target.value;
+                      setLeaderId(val);
                       // Auto-check the leader as selected member
-                      if (e.target.value && !selectedMembers.includes(e.target.value)) {
-                        setSelectedMembers([...selectedMembers, e.target.value]);
+                      if (val && !selectedMembers.includes(val)) {
+                        setSelectedMembers([...selectedMembers, val]);
                       }
                     }}
                     required
                   >
                     <option value="">-- Choose a Student --</option>
-                    {students.map(s => (
+                    {unassigned.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
@@ -305,7 +306,7 @@ export default function GroupManager({
                     gap: '8px',
                     backgroundColor: 'var(--bg-app)' 
                   }}>
-                    {students.map(s => {
+                    {unassigned.map(s => {
                       const isLeader = leaderId === s.id;
                       const isChecked = selectedMembers.includes(s.id);
                       return (
@@ -330,6 +331,11 @@ export default function GroupManager({
                         </div>
                       );
                     })}
+                    {unassigned.length === 0 && (
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '10px 0' }}>
+                        No unassigned students available in this course.
+                      </div>
+                    )}
                   </div>
                 </div>
 

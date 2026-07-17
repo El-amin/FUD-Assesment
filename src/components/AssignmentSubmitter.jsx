@@ -43,6 +43,10 @@ export default function AssignmentSubmitter({
         return { submitted: false, noGroup: true };
       }
       const groupSub = submissions.find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === targetGroupId);
+      const isLeader = courseGroup ? (courseGroup.leaderId === student.id) : false;
+      const leaderUser = courseGroup ? users.find(u => u.id === courseGroup.leaderId) : null;
+      const leaderName = leaderUser ? leaderUser.name : 'Group Leader';
+
       if (groupSub) {
         const submitter = users.find(u => u.id === groupSub.studentId || u.id === groupSub.student_id);
         return { 
@@ -52,10 +56,16 @@ export default function AssignmentSubmitter({
           attachmentName: groupSub.attachmentName || groupSub.attachment_name,
           submissionText: groupSub.submissionText || groupSub.submission_text,
           submittedAt: groupSub.submittedAt || groupSub.submitted_at,
-          submitterName: submitter ? submitter.name : 'Group Member'
+          submitterName: submitter ? submitter.name : 'Group Member',
+          isGroupSubmitLocked: !isLeader,
+          leaderName
         };
       }
-      return { submitted: false };
+      return { 
+        submitted: false,
+        isGroupSubmitLocked: !isLeader,
+        leaderName
+      };
     }
 
     // Individual assignment check (resilience for double submissions: look for graded one first)
@@ -164,6 +174,40 @@ export default function AssignmentSubmitter({
                       ⚠️ Closed (Due date passed)
                     </span>
                   )}
+                  
+                  {isGroupAssign && (() => {
+                    const courseId = assign.courseId || assign.course_id;
+                    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+                    if (courseGroup) {
+                      const leader = users.find(u => u.id === courseGroup.leaderId);
+                      const members = users.filter(u => courseGroup.memberIds.includes(u.id) && u.id !== courseGroup.leaderId);
+                      return (
+                        <div style={{ 
+                          marginTop: '10px', 
+                          padding: '10px', 
+                          backgroundColor: 'rgba(10, 92, 54, 0.03)', 
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border)',
+                          fontSize: '0.75rem'
+                        }}>
+                          <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '4px' }}>
+                            👥 Group: {courseGroup.name}
+                          </div>
+                          <div>Leader: <strong>{leader ? leader.name : 'Unknown'}</strong></div>
+                          {members.length > 0 && (
+                            <div style={{ color: 'var(--text-muted)', marginTop: '2px' }}>
+                              Members: {members.map(m => m.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ marginTop: '10px', color: 'var(--color-danger)', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        ⚠️ You are not assigned to any group in this course yet.
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -228,6 +272,15 @@ export default function AssignmentSubmitter({
                         >
                           🔒 Closed (Due Date Passed)
                         </button>
+                      ) : status.isGroupSubmitLocked ? (
+                        <button 
+                          className="btn btn-outline btn-sm" 
+                          disabled
+                          style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          title={`Only the group leader (${status.leaderName}) can resubmit`}
+                        >
+                          🔒 Resubmission Locked (Leader Only)
+                        </button>
                       ) : (
                         <button 
                           className="btn btn-outline btn-sm" 
@@ -255,6 +308,16 @@ export default function AssignmentSubmitter({
                     >
                       ❌ Closed (Due Date Passed)
                     </button>
+                  ) : status.isGroupSubmitLocked ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)', fontSize: '0.8rem', fontWeight: '600' }}>
+                        <AlertTriangle size={16} />
+                        <span>Only group leader ({status.leaderName}) can submit!</span>
+                      </div>
+                      <button className="btn btn-outline btn-sm" disabled style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed' }}>
+                        🔒 Submission Locked (Leader Only)
+                      </button>
+                    </div>
                   ) : (
                     <button 
                       className="btn btn-primary btn-sm" 

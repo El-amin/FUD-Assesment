@@ -586,7 +586,7 @@ export default function GroupManager({
                 </div>
 
                 <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  For group assignments, any member can upload files. The grade applied by Dr. Bello will synchronize to all members.
+                  For group assignments, only the Group Leader can submit files. The grade applied by Dr. Bello will automatically synchronize to all members.
                 </div>
               </div>
             </div>

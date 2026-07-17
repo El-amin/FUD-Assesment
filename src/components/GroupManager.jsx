@@ -108,11 +108,8 @@ export default function GroupManager({
       return;
     }
 
-    // Leader must be in members
-    let finalMembers = [...editMembers];
-    if (!finalMembers.includes(editLeaderId)) {
-      finalMembers.push(editLeaderId);
-    }
+    // Leader must be in members, and all members must be unique
+    const finalMembers = Array.from(new Set([...editMembers, editLeaderId]));
 
     const updatedGroup = {
       ...editingGroup,
@@ -458,7 +455,11 @@ export default function GroupManager({
                               <span style={{ fontSize: '0.85rem' }}>{s.name}</span>
                               <button
                                 type="button"
-                                onClick={() => setEditMembers([...editMembers, s.id])}
+                                onClick={() => {
+                                  if (!editMembers.includes(s.id)) {
+                                    setEditMembers([...editMembers, s.id]);
+                                  }
+                                }}
                                 style={{
                                   border: 'none',
                                   background: 'none',

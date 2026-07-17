@@ -779,7 +779,8 @@ Possible Solutions:
         return;
       }
 
-      const memberRecords = newGroup.memberIds.map(studentId => ({
+      const uniqueMemberIds = Array.from(new Set(newGroup.memberIds));
+      const memberRecords = uniqueMemberIds.map(studentId => ({
         group_id: newGroup.id,
         student_id: studentId
       }));
@@ -811,7 +812,8 @@ Possible Solutions:
 
       await supabase.from('group_members').delete().eq('group_id', updatedGroup.id);
       
-      const memberRecords = updatedGroup.memberIds.map(studentId => ({
+      const uniqueMemberIds = Array.from(new Set(updatedGroup.memberIds));
+      const memberRecords = uniqueMemberIds.map(studentId => ({
         group_id: updatedGroup.id,
         student_id: studentId
       }));

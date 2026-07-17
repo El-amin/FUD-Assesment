@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, MapPin, Activity, Clock, UserCheck, CheckCircle, XCircle, Calendar, ShieldAlert } from 'lucide-react';
+import { PlusCircle, MapPin, Activity, Clock, UserCheck, CheckCircle, XCircle, Calendar, ShieldAlert, Trash2 } from 'lucide-react';
 
 export default function AttendanceManager({
   currentRole,
@@ -7,10 +7,13 @@ export default function AttendanceManager({
   courses,
   attendanceSessions,
   attendanceRecords,
+  enrollments = [],
   onAddAttendanceSession,
   onToggleAttendanceSession,
   onDeleteAttendanceSession,
-  onMarkAttendance
+  onMarkAttendance,
+  onDeleteAttendanceRecord,
+  activeCourseId
 }) {
   const user = users.find(u => u.id === currentRole) || users[0];
   const isLecturer = user.role === 'lecturer';
@@ -19,6 +22,7 @@ export default function AttendanceManager({
   const [topic, setTopic] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
   const [activeSessionIdForLogs, setActiveSessionIdForLogs] = useState(null);
+  const [manualStudentId, setManualStudentId] = useState('');
 
   // Student Location Retrieval States
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -176,7 +180,34 @@ export default function AttendanceManager({
     setIsGettingLocation(false);
     setGpsError('');
     setManualGpsInput(false);
-    alert(`Attendance marked present successfully! Verified IP: ${clientIp}`);
+  };
+
+  const handleMarkManualAttendance = (studentId, sessionId) => {
+    const student = users.find(u => u.id === studentId);
+    if (!student) return;
+    
+    const newRecord = {
+      id: 'record_' + Date.now().toString(),
+      session_id: sessionId,
+      sessionId: sessionId,
+      student_id: student.id,
+      studentId: student.id,
+      student_name: student.name,
+      studentName: student.name,
+      reg_no: student.email,
+      regNo: student.email,
+      marked_at: new Date().toISOString(),
+      markedAt: new Date().toISOString(),
+      gps_lat: null,
+      gpsLat: null,
+      gps_lng: null,
+      gpsLng: null,
+      ip_address: 'Lecturer Added',
+      ipAddress: 'Lecturer Added'
+    };
+    
+    onMarkAttendance(newRecord);
+    setManualStudentId('');
   };
 
   const handleManualSubmit = (e, sessionId) => {
@@ -415,72 +446,150 @@ export default function AttendanceManager({
 
             {activeSessionIdForLogs ? (() => {
               const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
-              return (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                        <th style={{ textAlign: 'left', padding: '10px' }}>Student Name</th>
-                        <th style={{ textAlign: 'left', padding: '10px' }}>Reg Number</th>
-                        <th style={{ textAlign: 'left', padding: '10px' }}>Timestamp</th>
-                        <th style={{ textAlign: 'center', padding: '10px' }}>Location coordinates (GPS)</th>
-                        <th style={{ textAlign: 'center', padding: '10px' }}>Logged IP Address</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {records.map(r => (
-                        <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '10px', fontWeight: 'bold' }}>{r.student_name || r.studentName}</td>
-                          <td style={{ padding: '10px', fontSize: '0.85rem' }}>{r.reg_no || r.regNo}</td>
-                          <td style={{ padding: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            {formatDate(r.marked_at || r.markedAt)}
-                          </td>
-                          <td style={{ padding: '10px', textAlign: 'center' }}>
-                            {((r.gps_lat || r.gpsLat) && (r.gps_lng || r.gpsLng)) ? (
-                              <a 
-                                href={`https://www.google.com/maps?q=${r.gps_lat || r.gpsLat},${r.gps_lng || r.gpsLng}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="badge badge-primary"
-                                style={{ 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '4px', 
-                                  fontSize: '0.7rem', 
-                                  cursor: 'pointer',
-                                  textDecoration: 'none'
-                                }}
-                              >
-                                <MapPin size={12} />
-                                {parseFloat(r.gps_lat || r.gpsLat).toFixed(4)}, {parseFloat(r.gps_lng || r.gpsLng).toFixed(4)}
-                              </a>
-                            ) : (
-                              <span style={{ 
-                                padding: '2px 8px', 
-                                borderRadius: '10px', 
-                                fontSize: '0.7rem', 
-                                backgroundColor: 'rgba(100, 116, 139, 0.1)', 
-                                color: 'var(--text-muted)' 
-                              }}>
-                                Location Bypassed
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            {r.ip_address || r.ipAddress || 'Unknown'}
-                          </td>
-                        </tr>
-                      ))}
+              
+              // Get enrolled students for the manual check-in dropdown
+              const enrolledStudents = users.filter(u => {
+                if (u.role !== 'student') return false;
+                return enrollments.some(e => 
+                  e.studentId === u.id && 
+                  (e.courseId === activeCourseId || e.course_id === activeCourseId)
+                );
+              });
+              
+              const presentStudentIds = new Set(records.map(r => r.student_id || r.studentId));
+              const absentStudents = enrolledStudents.filter(u => !presentStudentIds.has(u.id));
 
-                      {records.length === 0 && (
-                        <tr>
-                          <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                            No student has marked attendance for this session yet.
-                          </td>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Manual check-in section for lecturer */}
+                  {isLecturer && (
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px', 
+                      padding: '14px', 
+                      backgroundColor: 'rgba(10, 92, 54, 0.04)', 
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px dashed var(--primary)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-title)' }}>
+                        Manual Check-in:
+                      </span>
+                      <select 
+                        className="form-input" 
+                        style={{ maxWidth: '300px', padding: '6px 12px', fontSize: '0.85rem', margin: 0 }} 
+                        value={manualStudentId} 
+                        onChange={e => setManualStudentId(e.target.value)}
+                      >
+                        <option value="">-- Select Student --</option>
+                        {absentStudents.map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                        ))}
+                      </select>
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        disabled={!manualStudentId}
+                        onClick={() => handleMarkManualAttendance(manualStudentId, activeSessionIdForLogs)}
+                        style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                      >
+                        Mark Present
+                      </button>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        * For students without smartphones/charge
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px' }}>Student Name</th>
+                          <th style={{ textAlign: 'left', padding: '10px' }}>Reg Number</th>
+                          <th style={{ textAlign: 'left', padding: '10px' }}>Timestamp</th>
+                          <th style={{ textAlign: 'center', padding: '10px' }}>Location coordinates (GPS)</th>
+                          <th style={{ textAlign: 'center', padding: '10px' }}>Logged IP Address</th>
+                          {isLecturer && <th style={{ textAlign: 'center', padding: '10px' }}>Actions</th>}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {records.map(r => (
+                          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '10px', fontWeight: 'bold' }}>{r.student_name || r.studentName}</td>
+                            <td style={{ padding: '10px', fontSize: '0.85rem' }}>{r.reg_no || r.regNo}</td>
+                            <td style={{ padding: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {formatDate(r.marked_at || r.markedAt)}
+                            </td>
+                            <td style={{ padding: '10px', textAlign: 'center' }}>
+                              {((r.gps_lat || r.gpsLat) && (r.gps_lng || r.gpsLng)) ? (
+                                <a 
+                                  href={`https://www.google.com/maps?q=${r.gps_lat || r.gpsLat},${r.gps_lng || r.gpsLng}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="badge badge-primary"
+                                  style={{ 
+                                    display: 'inline-flex', 
+                                    alignItems: 'center', 
+                                    gap: '4px', 
+                                    fontSize: '0.7rem', 
+                                    cursor: 'pointer',
+                                    textDecoration: 'none'
+                                  }}
+                                >
+                                  <MapPin size={12} />
+                                  {parseFloat(r.gps_lat || r.gpsLat).toFixed(4)}, {parseFloat(r.gps_lng || r.gpsLng).toFixed(4)}
+                                </a>
+                              ) : (
+                                <span style={{ 
+                                  padding: '2px 8px', 
+                                  borderRadius: '10px', 
+                                  fontSize: '0.7rem', 
+                                  backgroundColor: 'rgba(100, 116, 139, 0.1)', 
+                                  color: 'var(--text-muted)' 
+                                }}>
+                                  Location Bypassed
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                              {r.ip_address || r.ipAddress || 'Unknown'}
+                            </td>
+                            {isLecturer && (
+                              <td style={{ padding: '10px', textAlign: 'center' }}>
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to remove attendance record for ${r.student_name || r.studentName}?`)) {
+                                      onDeleteAttendanceRecord(r.id);
+                                    }
+                                  }}
+                                  className="btn btn-sm"
+                                  style={{ 
+                                    backgroundColor: 'transparent', 
+                                    border: 'none', 
+                                    color: 'var(--color-danger)', 
+                                    cursor: 'pointer',
+                                    padding: '4px'
+                                  }}
+                                  title="Delete Record"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+
+                        {records.length === 0 && (
+                          <tr>
+                            <td colSpan={isLecturer ? 6 : 5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                              No student has marked attendance for this session yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               );
             })() : (

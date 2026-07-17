@@ -1239,6 +1239,21 @@ Possible Solutions:
     triggerToast("Attendance successfully checked in!");
   };
 
+  const handleDeleteAttendanceRecord = async (recordId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('id', recordId);
+      if (error) {
+        alert(formatDbError("Supabase Delete Attendance Record Error", error));
+        return;
+      }
+    }
+    setAttendanceRecords(attendanceRecords.filter(r => r.id !== recordId));
+    triggerToast("Attendance record removed!");
+  };
+
   // Gatekeeper: Render LoginPage if not authenticated
   if (!isAuthenticated || !currentUser) {
     return <LoginPage users={users} onLogin={handleLoginSuccess} onChangePassword={handleChangePassword} dbError={dbError} />;
@@ -1979,16 +1994,18 @@ Possible Solutions:
           )}
 
           {currentTab === 'attendance' && (
-            <AttendanceManager 
+             <AttendanceManager 
               currentRole={activeUser.id}
               users={enrichedUsers}
               courses={visibleCourses}
               attendanceSessions={attendanceSessions.filter(s => s.course_id === selectedCourseId || s.courseId === selectedCourseId)}
               attendanceRecords={attendanceRecords}
+              enrollments={enrollments}
               onAddAttendanceSession={handleAddAttendanceSession}
               onToggleAttendanceSession={handleToggleAttendanceSession}
               onDeleteAttendanceSession={handleDeleteAttendanceSession}
               onMarkAttendance={handleMarkAttendance}
+              onDeleteAttendanceRecord={handleDeleteAttendanceRecord}
               activeCourseId={selectedCourseId}
             />
           )}

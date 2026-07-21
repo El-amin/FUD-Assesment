@@ -575,6 +575,9 @@ export default function AssignmentManager({
   const [aiModel, setAiModel] = useState(() => {
     return localStorage.getItem('fud_gemini_api_model') || 'gemini-3.1-flash-lite';
   });
+  const [showAiSetup, setShowAiSetup] = useState(() => {
+    return !localStorage.getItem('fud_gemini_api_key') && !import.meta.env.VITE_GEMINI_API_KEY;
+  });
   const [saveApiKeyLocally, setSaveApiKeyLocally] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -848,6 +851,7 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
       setGradeScore(finalScore.toString());
       setGradeFeedback(resultObj.feedback);
       setAiGeneratedTag(true);
+      setShowAiSetup(false);
 
       // Save key and model locally if enabled
       if (saveApiKeyLocally) {
@@ -1277,50 +1281,80 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                               flexDirection: 'column',
                               gap: '10px'
                             }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                                <Sparkles size={14} />
-                                <span>AI Grading Assistant</span>
-                              </div>
-                              
-                              <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Model Version</label>
-                                <select 
-                                  className="form-select"
-                                  value={aiModel}
-                                  onChange={e => setAiModel(e.target.value)}
-                                  style={{ fontSize: '0.8rem', padding: '4px 10px', height: '32px', margin: 0 }}
-                                >
-                                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lite / Fast)</option>
-                                  <option value="gemini-3.5-flash">gemini-3.5-flash (High performance)</option>
-                                  <option value="gemini-1.5-flash">gemini-1.5-flash (Stable default)</option>
-                                  <option value="gemini-1.5-pro">gemini-1.5-pro (Complex reasoning)</option>
-                                </select>
-                              </div>
-                              
-                              <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Gemini API Key</label>
-                                <input 
-                                  type="password"
-                                  className="form-input"
-                                  placeholder="Enter your Gemini API Key..."
-                                  value={geminiApiKey}
-                                  onChange={e => setGeminiApiKey(e.target.value)}
-                                  style={{ fontSize: '0.8rem', padding: '6px 10px', height: '32px', margin: 0 }}
-                                />
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed rgba(10, 92, 54, 0.1)', paddingBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                  <Sparkles size={14} />
+                                  <span>AI Grading Assistant</span>
+                                </div>
+                                {geminiApiKey.trim() && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowAiSetup(!showAiSetup)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: 'var(--primary)',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(10, 92, 54, 0.08)'
+                                    }}
+                                  >
+                                    {showAiSetup ? 'Hide Settings' : 'Edit Settings'}
+                                  </button>
+                                )}
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <input 
-                                  type="checkbox"
-                                  id="saveApiKey"
-                                  checked={saveApiKeyLocally}
-                                  onChange={e => setSaveApiKeyLocally(e.target.checked)}
-                                  style={{ width: '14px', height: '14px', cursor: 'pointer' }}
-                                />
-                                <label htmlFor="saveApiKey" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                                  Save API Key in browser local storage
-                                </label>
-                              </div>
+                              {showAiSetup ? (
+                                <>
+                                  <div className="form-group" style={{ margin: 0 }}>
+                                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Model Version</label>
+                                    <select 
+                                      className="form-select"
+                                      value={aiModel}
+                                      onChange={e => setAiModel(e.target.value)}
+                                      style={{ fontSize: '0.8rem', padding: '4px 10px', height: '32px', margin: 0 }}
+                                    >
+                                      <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lite / Fast)</option>
+                                      <option value="gemini-3.5-flash">gemini-3.5-flash (High performance)</option>
+                                      <option value="gemini-1.5-flash">gemini-1.5-flash (Stable default)</option>
+                                      <option value="gemini-1.5-pro">gemini-1.5-pro (Complex reasoning)</option>
+                                    </select>
+                                  </div>
+                                  
+                                  <div className="form-group" style={{ margin: 0 }}>
+                                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Gemini API Key</label>
+                                    <input 
+                                      type="password"
+                                      className="form-input"
+                                      placeholder="Enter your Gemini API Key..."
+                                      value={geminiApiKey}
+                                      onChange={e => setGeminiApiKey(e.target.value)}
+                                      style={{ fontSize: '0.8rem', padding: '6px 10px', height: '32px', margin: 0 }}
+                                    />
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <input 
+                                      type="checkbox"
+                                      id="saveApiKey"
+                                      checked={saveApiKeyLocally}
+                                      onChange={e => setSaveApiKeyLocally(e.target.checked)}
+                                      style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="saveApiKey" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                                      Save API Key in browser local storage
+                                    </label>
+                                  </div>
+                                </>
+                              ) : (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  <span>🔑 API Credentials Active</span>
+                                  <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>({aiModel})</span>
+                                </div>
+                              )}
 
                               <button
                                 type="button"

@@ -698,22 +698,83 @@ export default function AssignmentManager({
     setAiError('');
 
     try {
-      const promptText = `You are an expert university professor grading assignments for a computer science/academic course.
+      let promptText = `You are an expert university professor grading assignments for a computer science/academic course.
 Evaluate the following student submission and provide a suggested score and short, constructive feedback.
 
 Assignment Details:
 - Title: "${selectedAssignmentForReview.title}"
 - Description: "${selectedAssignmentForReview.description || 'N/A'}"
+- Assignment Questions: "${selectedAssignmentForReview.questions || 'See attachment / description'}"
 - Maximum Possible Score: ${selectedAssignmentForReview.maxScore || 100}
 
 Student Submission Details:
 - Student Name: "${studentObj?.name || 'Unknown'}"
-- Submission Text/Content: "${activeSubmission.submissionText || 'No text content provided.'}"
-- Attachment Filename: "${activeSubmission.attachmentName || 'No attachment file.'}"
+- Submission Notes/Text: "${activeSubmission.submissionText || 'No text content notes provided.'}"
+- Attachment Filename: "${activeSubmission.attachmentName || 'No attachment file.'}"`;
 
-Your task:
-1. Analyze the student's submission carefully.
-2. Determine an appropriate integer score between 0 and ${selectedAssignmentForReview.maxScore || 100}.
+      // Get public URL of file attachment if configured
+      let attachmentUrl = null;
+      let hasAttachment = false;
+      let isFileMimeType = '';
+      let fileBase64 = '';
+
+      if (activeSubmission.attachmentName && isSupabaseConfigured) {
+        const originalExt = activeSubmission.attachmentName.split('.').pop().toLowerCase();
+        const path = `${activeSubmission.id}.${originalExt}`;
+        const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+        attachmentUrl = data?.publicUrl;
+        
+        // Define supported multimodal MIME types
+        const mimeTypes = {
+          'pdf': 'application/pdf',
+          'png': 'image/png',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'webp': 'image/webp',
+          'gif': 'image/gif'
+        };
+        
+        if (mimeTypes[originalExt]) {
+          isFileMimeType = mimeTypes[originalExt];
+        }
+      }
+
+      if (attachmentUrl) {
+        try {
+          const fileResp = await fetch(attachmentUrl);
+          if (fileResp.ok) {
+            const blob = await fileResp.blob();
+            
+            // Check if it's text-based first (e.g. code files, sql, txt, py, etc.)
+            const textExtensions = ['txt', 'js', 'jsx', 'py', 'java', 'c', 'cpp', 'html', 'css', 'sql', 'json', 'csv'];
+            const originalExt = activeSubmission.attachmentName.split('.').pop().toLowerCase();
+            
+            if (textExtensions.includes(originalExt)) {
+              const fileText = await blob.text();
+              hasAttachment = true;
+              promptText += `\n\n--- ATTACHED FILE CONTENT (${activeSubmission.attachmentName}) ---\n${fileText}\n--------------------------------------`;
+            } else if (isFileMimeType) {
+              // Convert binary file to base64 for Gemini multimodal API
+              const base64String = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              if (base64String) {
+                fileBase64 = base64String;
+                hasAttachment = true;
+              }
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('Could not download file content for AI grading, falling back to metadata:', fetchErr);
+        }
+      }
+
+      promptText += `\n\nYour task:
+1. Analyze the student's submission (submission notes, attached file text, or multimodal binary file context) carefully.
+2. Determine an appropriate integer score between 0 and ${selectedAssignmentForReview.maxScore || 100} based on their compliance with the assignment description and questions.
 3. Provide objective, helpful feedback (2-4 sentences) summarizing what they did well and how they could improve.
 4. Output your response EXACTLY as a valid JSON object in this format:
 {
@@ -721,6 +782,19 @@ Your task:
   "feedback": "<constructive_feedback_comments>"
 }
 Do not include any extra text, explanations, or markdown blocks outside the JSON object.`;
+
+      const requestParts = [
+        { text: promptText }
+      ];
+
+      if (hasAttachment && fileBase64 && isFileMimeType) {
+        requestParts.push({
+          inlineData: {
+            mimeType: isFileMimeType,
+            data: fileBase64
+          }
+        });
+      }
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel.trim()}:generateContent?key=${geminiApiKey.trim()}`, {
         method: 'POST',
@@ -730,9 +804,7 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
         body: JSON.stringify({
           contents: [
             {
-              parts: [
-                { text: promptText }
-              ]
+              parts: requestParts
             }
           ]
         })

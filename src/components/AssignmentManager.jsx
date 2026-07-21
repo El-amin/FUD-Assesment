@@ -567,6 +567,16 @@ export default function AssignmentManager({
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
 
+  // AI Grading States
+  const [gradingMode, setGradingMode] = useState('manual');
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    return localStorage.getItem('fud_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+  });
+  const [saveApiKeyLocally, setSaveApiKeyLocally] = useState(true);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiGeneratedTag, setAiGeneratedTag] = useState(false);
+
   const handleOpenCreateModal = () => {
     setEditingAssignment(null);
     setCourseId(courses[0]?.id || '');
@@ -671,6 +681,109 @@ export default function AssignmentManager({
     setActiveSubmission(sub);
     setGradeScore(sub.score !== undefined && sub.score !== null ? sub.score.toString() : '');
     setGradeFeedback(sub.feedback || '');
+    setAiGeneratedTag(false);
+    setAiError('');
+  };
+
+  const handleGenerateAiGrade = async (studentObj) => {
+    if (!geminiApiKey.trim()) {
+      setAiError('Please enter a Gemini API Key to use AI grading.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiError('');
+
+    try {
+      const promptText = `You are an expert university professor grading assignments for a computer science/academic course.
+Evaluate the following student submission and provide a suggested score and short, constructive feedback.
+
+Assignment Details:
+- Title: "${selectedAssignmentForReview.title}"
+- Description: "${selectedAssignmentForReview.description || 'N/A'}"
+- Maximum Possible Score: ${selectedAssignmentForReview.maxScore || 100}
+
+Student Submission Details:
+- Student Name: "${studentObj?.name || 'Unknown'}"
+- Submission Text/Content: "${activeSubmission.submissionText || 'No text content provided.'}"
+- Attachment Filename: "${activeSubmission.attachmentName || 'No attachment file.'}"
+
+Your task:
+1. Analyze the student's submission carefully.
+2. Determine an appropriate integer score between 0 and ${selectedAssignmentForReview.maxScore || 100}.
+3. Provide objective, helpful feedback (2-4 sentences) summarizing what they did well and how they could improve.
+4. Output your response EXACTLY as a valid JSON object in this format:
+{
+  "score": <integer_score>,
+  "feedback": "<constructive_feedback_comments>"
+}
+Do not include any extra text, explanations, or markdown blocks outside the JSON object.`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey.trim()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: promptText }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP error! Status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      const rawText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      if (!rawText) {
+        throw new Error('Received empty response from Gemini API.');
+      }
+
+      // Parse JSON from raw response text
+      let cleanedText = rawText.trim();
+      if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
+      }
+      cleanedText = cleanedText.trim();
+
+      // Find first '{' and last '}' to handle any stray text
+      const firstBrace = cleanedText.indexOf('{');
+      const lastBrace = cleanedText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
+      }
+
+      const resultObj = JSON.parse(cleanedText);
+      
+      if (typeof resultObj.score !== 'number' || !resultObj.feedback) {
+        throw new Error('AI returned an invalid response structure.');
+      }
+
+      // Constrain score
+      const finalScore = Math.max(0, Math.min(selectedAssignmentForReview.maxScore, Math.round(resultObj.score)));
+
+      setGradeScore(finalScore.toString());
+      setGradeFeedback(resultObj.feedback);
+      setAiGeneratedTag(true);
+
+      // Save key locally if enabled
+      if (saveApiKeyLocally) {
+        localStorage.setItem('fud_gemini_api_key', geminiApiKey.trim());
+      }
+    } catch (err) {
+      console.error('AI grading error:', err);
+      setAiError(err.message || 'An error occurred while generating the AI grade.');
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const handleSaveGradeInline = (e) => {
@@ -1013,15 +1126,177 @@ export default function AssignmentManager({
                           studentName={studentObj?.name || 'Unknown Student'}
                         />
 
+                        {/* Inline Keyframe Styles for AI Spinner */}
+                        <style>{`
+                          @keyframes ai-spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                          }
+                          .ai-spinner-icon {
+                            animation: ai-spin 1s linear infinite;
+                          }
+                        `}</style>
+
                         {/* Grading Form Panel */}
                         <div className="card" style={{ border: '1px solid var(--primary)', borderLeft: '4px solid var(--primary)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                            <Sparkles size={18} style={{ color: 'var(--primary)' }} />
-                            <h4 style={{ fontSize: '1rem', fontWeight: '700' }}>Grading Form Sheet</h4>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Sparkles size={18} style={{ color: 'var(--primary)' }} />
+                              <h4 style={{ fontSize: '1rem', fontWeight: '700' }}>Grading Form Sheet</h4>
+                            </div>
+                            
+                            {/* Grading Mode Toggle */}
+                            <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGradingMode('manual');
+                                  setAiError('');
+                                }}
+                                style={{
+                                  padding: '5px 12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold',
+                                  backgroundColor: gradingMode === 'manual' ? 'var(--primary)' : 'transparent',
+                                  color: gradingMode === 'manual' ? 'white' : 'var(--text-title)',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                Manual
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setGradingMode('ai')}
+                                style={{
+                                  padding: '5px 12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold',
+                                  backgroundColor: gradingMode === 'ai' ? 'var(--primary)' : 'transparent',
+                                  color: gradingMode === 'ai' ? 'white' : 'var(--text-title)',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Sparkles size={12} />
+                                AI Assistant
+                              </button>
+                            </div>
                           </div>
 
+                          {/* AI Assistant Setup Form */}
+                          {gradingMode === 'ai' && (
+                            <div style={{ 
+                              padding: '12px', 
+                              backgroundColor: 'rgba(10, 92, 54, 0.03)', 
+                              border: '1px dashed var(--primary)', 
+                              borderRadius: 'var(--radius-md)', 
+                              marginBottom: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                <Sparkles size={14} />
+                                <span>AI Grading Assistant</span>
+                              </div>
+                              
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Gemini API Key</label>
+                                <input 
+                                  type="password"
+                                  className="form-input"
+                                  placeholder="Enter your Gemini API Key..."
+                                  value={geminiApiKey}
+                                  onChange={e => setGeminiApiKey(e.target.value)}
+                                  style={{ fontSize: '0.8rem', padding: '6px 10px', height: '32px', margin: 0 }}
+                                />
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <input 
+                                  type="checkbox"
+                                  id="saveApiKey"
+                                  checked={saveApiKeyLocally}
+                                  onChange={e => setSaveApiKeyLocally(e.target.checked)}
+                                  style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                />
+                                <label htmlFor="saveApiKey" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                                  Save API Key in browser local storage
+                                </label>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                disabled={isAiLoading || !geminiApiKey.trim()}
+                                onClick={() => handleGenerateAiGrade(studentObj)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '6px', 
+                                  fontSize: '0.8rem', 
+                                  height: '32px',
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  gap: '6px',
+                                  margin: 0
+                                }}
+                              >
+                                {isAiLoading ? (
+                                  <>
+                                    <span className="ai-spinner-icon" style={{ 
+                                      width: '12px', 
+                                      height: '12px', 
+                                      border: '2px solid white', 
+                                      borderTop: '2px solid transparent', 
+                                      borderRadius: '50%',
+                                      display: 'inline-block'
+                                    }}></span>
+                                    Analyzing submission...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles size={14} />
+                                    Generate AI Suggestion
+                                  </>
+                                )}
+                              </button>
+
+                              {aiError && (
+                                <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '2px' }}>
+                                  ⚠️ {aiError}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {aiGeneratedTag && (
+                            <div style={{ 
+                              padding: '8px 12px', 
+                              backgroundColor: 'rgba(10, 92, 54, 0.08)', 
+                              border: '1px solid var(--primary)', 
+                              borderRadius: 'var(--radius-sm)', 
+                              fontSize: '0.75rem', 
+                              color: 'var(--primary)', 
+                              fontWeight: 'bold',
+                              marginBottom: '16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              <Sparkles size={14} />
+                              <span>AI Suggestion Loaded. Review or modify before saving.</span>
+                            </div>
+                          )}
+
                           <form onSubmit={handleSaveGradeInline} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="form-group" style={{ maxWidth: '200px' }}>
+                            <div className="form-group" style={{ maxWidth: '200px', margin: 0 }}>
                               <label className="form-label">Score (Max: {selectedAssignmentForReview.maxScore})</label>
                               <input 
                                 type="number" 
@@ -1029,18 +1304,24 @@ export default function AssignmentManager({
                                 min="0" 
                                 max={selectedAssignmentForReview.maxScore}
                                 value={gradeScore}
-                                onChange={e => setGradeScore(e.target.value)}
+                                onChange={e => {
+                                  setGradeScore(e.target.value);
+                                  setAiGeneratedTag(false);
+                                }}
                                 required
                               />
                             </div>
 
-                            <div className="form-group">
+                            <div className="form-group" style={{ margin: 0 }}>
                               <label className="form-label">Academic Feedback Comments</label>
                               <textarea 
                                 className="form-textarea" 
                                 placeholder="Write comments regarding code quality, formatting, schema correctness..."
                                 value={gradeFeedback}
-                                onChange={e => setGradeFeedback(e.target.value)}
+                                onChange={e => {
+                                  setGradeFeedback(e.target.value);
+                                  setAiGeneratedTag(false);
+                                }}
                                 style={{ minHeight: '80px' }}
                               />
                             </div>
@@ -1055,7 +1336,7 @@ export default function AssignmentManager({
                             )}
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-                              <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '8px 16px' }}>
+                              <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '8px 16px', margin: 0 }}>
                                 Save Grade & Feedback
                               </button>
                             </div>

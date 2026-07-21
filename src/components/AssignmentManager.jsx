@@ -572,6 +572,9 @@ export default function AssignmentManager({
   const [geminiApiKey, setGeminiApiKey] = useState(() => {
     return localStorage.getItem('fud_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
   });
+  const [aiModel, setAiModel] = useState(() => {
+    return localStorage.getItem('fud_gemini_api_model') || 'gemini-3.1-flash-lite';
+  });
   const [saveApiKeyLocally, setSaveApiKeyLocally] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -719,7 +722,7 @@ Your task:
 }
 Do not include any extra text, explanations, or markdown blocks outside the JSON object.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey.trim()}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel.trim()}:generateContent?key=${geminiApiKey.trim()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -774,9 +777,10 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
       setGradeFeedback(resultObj.feedback);
       setAiGeneratedTag(true);
 
-      // Save key locally if enabled
+      // Save key and model locally if enabled
       if (saveApiKeyLocally) {
         localStorage.setItem('fud_gemini_api_key', geminiApiKey.trim());
+        localStorage.setItem('fud_gemini_api_model', aiModel.trim());
       }
     } catch (err) {
       console.error('AI grading error:', err);
@@ -1204,6 +1208,21 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                                 <Sparkles size={14} />
                                 <span>AI Grading Assistant</span>
+                              </div>
+                              
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Model Version</label>
+                                <select 
+                                  className="form-select"
+                                  value={aiModel}
+                                  onChange={e => setAiModel(e.target.value)}
+                                  style={{ fontSize: '0.8rem', padding: '4px 10px', height: '32px', margin: 0 }}
+                                >
+                                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lite / Fast)</option>
+                                  <option value="gemini-3.5-flash">gemini-3.5-flash (High performance)</option>
+                                  <option value="gemini-1.5-flash">gemini-1.5-flash (Stable default)</option>
+                                  <option value="gemini-1.5-pro">gemini-1.5-pro (Complex reasoning)</option>
+                                </select>
                               </div>
                               
                               <div className="form-group" style={{ margin: 0 }}>

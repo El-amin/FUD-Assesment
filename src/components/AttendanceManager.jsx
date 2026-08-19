@@ -25,6 +25,7 @@ export default function AttendanceManager({
   const [manualSearchQuery, setManualSearchQuery] = useState('');
   const [selectedStudentForManual, setSelectedStudentForManual] = useState(null);
   const [showManualDropdown, setShowManualDropdown] = useState(false);
+  const [lecturerAttendanceTab, setLecturerAttendanceTab] = useState('single'); // 'single' or 'aggregated'
 
   // Student Location Retrieval States
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -95,6 +96,55 @@ export default function AttendanceManager({
     // Filename formatting
     const safeTitle = session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     link.setAttribute('download', `Attendance_${safeTitle || 'roster'}.csv`);
+    
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportCumulativeCSV = (sessions, enrolledStudentsList) => {
+    if (sessions.length === 0 || enrolledStudentsList.length === 0) return;
+    
+    // Sort sessions oldest first
+    const sortedSessions = [...sessions].sort((a, b) => new Date(a.created_at || a.createdAt || 0) - new Date(b.created_at || b.createdAt || 0));
+    
+    // Headers: Student Name, Reg Number, Week 1, ..., Overall %
+    const headers = ['Student Name', 'Reg Number', ...sortedSessions.map(s => s.title), 'Overall Percentage'];
+    
+    const rows = enrolledStudentsList.map(student => {
+      let presentCount = 0;
+      const weeklyCheckins = sortedSessions.map(session => {
+        const isPresent = attendanceRecords.some(r => 
+          (r.session_id === session.id || r.sessionId === session.id) && 
+          (r.student_id === student.id || r.studentId === student.id)
+        );
+        if (isPresent) {
+          presentCount++;
+          return 'Present';
+        }
+        return 'Absent';
+      });
+      
+      const totalSessions = sortedSessions.length;
+      const percentage = totalSessions > 0 ? ((presentCount / totalSessions) * 100).toFixed(1) + '%' : '0%';
+      
+      return [
+        `"${student.name.replace(/"/g, '""')}"`,
+        `"${student.email.replace(/"/g, '""')}"`,
+        ...weeklyCheckins.map(val => `"${val}"`),
+        `"${percentage}"`
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    
+    const courseCode = courses.find(c => c.id === selectedCourseId)?.code || 'course';
+    link.setAttribute('download', `Cumulative_Attendance_${courseCode.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`);
     
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -402,295 +452,454 @@ export default function AttendanceManager({
         {/* LECTURER RIGHT COLUMN: Student Logs for selected session */}
         {isLecturer && (
           <div className="card" style={{ padding: '24px' }}>
-            <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-title)' }}>
-                  Roster Logs Roster Summary
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                  {activeSessionIdForLogs 
-                    ? `Viewing entries for: "${attendanceSessions.find(s => s.id === activeSessionIdForLogs)?.title}"`
-                    : 'Select an attendance session from the left column to audit student check-in details.'}
-                </p>
-              </div>
-
-              {activeSessionIdForLogs && (() => {
-                const currentSession = attendanceSessions.find(s => s.id === activeSessionIdForLogs);
-                const isSessionActive = currentSession ? (currentSession.is_active !== false && currentSession.isActive !== false) : false;
-                const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
-                
-                if (!isSessionActive && records.length > 0) {
-                  return (
-                    <button
-                      onClick={() => handleExportCSV(currentSession, records)}
-                      style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '6px', 
-                        height: '32px', 
-                        backgroundColor: '#107c41', 
-                        color: 'white',
-                        border: 'none',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '0 12px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s'
-                      }}
-                    >
-                      📥 Export to Excel
-                    </button>
-                  );
-                }
-                return null;
-              })()}
+            
+            {/* View Mode Tabs Selector */}
+            <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '20px', maxWidth: '380px' }}>
+              <button
+                type="button"
+                onClick={() => setLecturerAttendanceTab('single')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  backgroundColor: lecturerAttendanceTab === 'single' ? 'var(--primary)' : 'transparent',
+                  color: lecturerAttendanceTab === 'single' ? 'white' : 'var(--text-title)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Session Register Logs
+              </button>
+              <button
+                type="button"
+                onClick={() => setLecturerAttendanceTab('aggregated')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  backgroundColor: lecturerAttendanceTab === 'aggregated' ? 'var(--primary)' : 'transparent',
+                  color: lecturerAttendanceTab === 'aggregated' ? 'white' : 'var(--text-title)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Cumulative Roster Matrix
+              </button>
             </div>
 
-            {activeSessionIdForLogs ? (() => {
-              const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
+            {lecturerAttendanceTab === 'single' ? (
+              <>
+                <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-title)' }}>
+                      Roster Logs Roster Summary
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                      {activeSessionIdForLogs 
+                        ? `Viewing entries for: "${attendanceSessions.find(s => s.id === activeSessionIdForLogs)?.title}"`
+                        : 'Select an attendance session from the left column to audit student check-in details.'}
+                    </p>
+                  </div>
+
+                  {activeSessionIdForLogs && (() => {
+                    const currentSession = attendanceSessions.find(s => s.id === activeSessionIdForLogs);
+                    const isSessionActive = currentSession ? (currentSession.is_active !== false && currentSession.isActive !== false) : false;
+                    const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
+                    
+                    if (!isSessionActive && records.length > 0) {
+                      return (
+                        <button
+                          onClick={() => handleExportCSV(currentSession, records)}
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
+                            height: '32px', 
+                            backgroundColor: '#107c41', 
+                            color: 'white',
+                            border: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0 12px',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s'
+                          }}
+                        >
+                          📥 Export to Excel
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                {activeSessionIdForLogs ? (() => {
+                  const records = attendanceRecords.filter(r => r.session_id === activeSessionIdForLogs || r.sessionId === activeSessionIdForLogs);
+                  
+                  // Get enrolled students for the manual check-in dropdown
+                  const enrolledStudents = users.filter(u => {
+                    if (u.role !== 'student') return false;
+                    return enrollments.some(e => 
+                      e.studentId === u.id && 
+                      (e.courseId === activeCourseId || e.course_id === activeCourseId)
+                    );
+                  });
+                  
+                  const presentStudentIds = new Set(records.map(r => r.student_id || r.studentId));
+                  const absentStudents = enrolledStudents.filter(u => !presentStudentIds.has(u.id));
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Manual check-in section for lecturer */}
+                      {isLecturer && (() => {
+                        const matchedAbsent = manualSearchQuery.trim() && !selectedStudentForManual
+                          ? absentStudents.filter(s => 
+                              s.name.toLowerCase().includes(manualSearchQuery.toLowerCase()) || 
+                              s.email.toLowerCase().includes(manualSearchQuery.toLowerCase())
+                            )
+                          : [];
+
+                        return (
+                          <div style={{ 
+                            position: 'relative', 
+                            padding: '16px', 
+                            backgroundColor: 'rgba(10, 92, 54, 0.02)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px'
+                          }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <UserCheck size={16} />
+                              Manual Roster Check-In
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                              <div style={{ flex: 1, position: 'relative' }}>
+                                <input 
+                                  type="text" 
+                                  className="form-input" 
+                                  placeholder="Search student name or registration number..." 
+                                  value={manualSearchQuery}
+                                  onChange={e => {
+                                    setManualSearchQuery(e.target.value);
+                                    setSelectedStudentForManual(null);
+                                    setShowManualDropdown(true);
+                                  }}
+                                  onFocus={() => setShowManualDropdown(true)}
+                                  style={{ height: '36px', fontSize: '0.85rem', paddingRight: '32px' }}
+                                />
+                                {manualSearchQuery && (
+                                  <button
+                                    onClick={() => {
+                                      setManualSearchQuery('');
+                                      setSelectedStudentForManual(null);
+                                    }}
+                                    style={{
+                                      position: 'absolute',
+                                      right: '10px',
+                                      top: '50%',
+                                      transform: 'translateY(-50%)',
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      color: 'var(--text-muted)'
+                                    }}
+                                  >
+                                    <XCircle size={16} />
+                                  </button>
+                                )}
+                                
+                                {showManualDropdown && matchedAbsent.length > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '38px',
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: 'var(--bg-card)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    boxShadow: 'var(--shadow-lg)',
+                                    zIndex: 10,
+                                    maxHeight: '180px',
+                                    overflowY: 'auto'
+                                  }}>
+                                    {matchedAbsent.map(student => (
+                                      <div
+                                        key={student.id}
+                                        onClick={() => {
+                                          setSelectedStudentForManual(student);
+                                          setManualSearchQuery(`${student.name} (${student.email})`);
+                                          setShowManualDropdown(false);
+                                        }}
+                                        style={{
+                                          padding: '10px 12px',
+                                          fontSize: '0.8rem',
+                                          cursor: 'pointer',
+                                          borderBottom: '1px solid var(--border)',
+                                          transition: 'background-color 0.2s'
+                                        }}
+                                        onMouseEnter={e => e.target.style.backgroundColor = 'rgba(10, 92, 54, 0.05)'}
+                                        onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                                      >
+                                        <div style={{ fontWeight: 'bold' }}>{student.name}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{student.email}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={!selectedStudentForManual}
+                                onClick={() => {
+                                  if (selectedStudentForManual) {
+                                    handleManualCheckin(activeSessionIdForLogs, selectedStudentForManual.id);
+                                    setManualSearchQuery('');
+                                    setSelectedStudentForManual(null);
+                                  }
+                                }}
+                                style={{ height: '36px', padding: '0 16px', fontSize: '0.8rem' }}
+                              >
+                                Check In
+                              </button>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                * For students without smartphones/charge
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                              <th style={{ textAlign: 'left', padding: '10px' }}>Student Name</th>
+                              <th style={{ textAlign: 'left', padding: '10px' }}>Reg Number</th>
+                              <th style={{ textAlign: 'left', padding: '10px' }}>Timestamp</th>
+                              <th style={{ textAlign: 'center', padding: '10px' }}>Location coordinates (GPS)</th>
+                              <th style={{ textAlign: 'center', padding: '10px' }}>Logged IP Address</th>
+                              {isLecturer && <th style={{ textAlign: 'center', padding: '10px' }}>Actions</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {records.map(r => (
+                              <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '10px', fontWeight: 'bold' }}>{r.student_name || r.studentName}</td>
+                                <td style={{ padding: '10px', fontSize: '0.85rem' }}>{r.reg_no || r.regNo}</td>
+                                <td style={{ padding: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {formatDate(r.marked_at || r.markedAt)}
+                                </td>
+                                <td style={{ padding: '10px', textAlign: 'center' }}>
+                                  {((r.gps_lat || r.gpsLat) && (r.gps_lng || r.gpsLng)) ? (
+                                    <a 
+                                      href={`https://www.google.com/maps?q=${r.gps_lat || r.gpsLat},${r.gps_lng || r.gpsLng}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="badge badge-primary"
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '4px', 
+                                        fontSize: '0.7rem', 
+                                        cursor: 'pointer',
+                                        textDecoration: 'none'
+                                      }}
+                                    >
+                                      <MapPin size={12} />
+                                      {parseFloat(r.gps_lat || r.gpsLat).toFixed(4)}, {parseFloat(r.gps_lng || r.gpsLng).toFixed(4)}
+                                    </a>
+                                  ) : (
+                                    <span style={{ 
+                                      padding: '2px 8px', 
+                                      borderRadius: '10px', 
+                                      fontSize: '0.7rem', 
+                                      backgroundColor: 'rgba(100, 116, 139, 0.1)', 
+                                      color: 'var(--text-muted)' 
+                                    }}>
+                                      Location Bypassed
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                  {r.ip_address || r.ipAddress || 'Unknown'}
+                                </td>
+                                {isLecturer && (
+                                  <td style={{ padding: '10px', textAlign: 'center' }}>
+                                    <button 
+                                      onClick={() => {
+                                        if (window.confirm(`Are you sure you want to remove attendance record for ${r.student_name || r.studentName}?`)) {
+                                          onDeleteAttendanceRecord(r.id);
+                                        }
+                                      }}
+                                      className="btn btn-sm"
+                                      style={{ 
+                                        backgroundColor: 'transparent', 
+                                        border: 'none', 
+                                        color: 'var(--color-danger)', 
+                                        cursor: 'pointer',
+                                        padding: '4px'
+                                      }}
+                                      title="Delete Record"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+
+                            {records.length === 0 && (
+                              <tr>
+                                <td colSpan={isLecturer ? 6 : 5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                                  No student has marked attendance for this session yet.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
+                    Select an attendance session from the left column to audit student check-in details.
+                  </div>
+                )}
+              </>
+            ) : (() => {
+              // AGGREGATED VIEW: CUMULATIVE MATRIX
+              const currentCourse = courses.find(c => c.id === selectedCourseId);
+              const courseCode = currentCourse ? currentCourse.code : 'Course';
+              const courseSessions = attendanceSessions.filter(s => s.course_id === selectedCourseId || s.courseId === selectedCourseId);
+              const sortedSessions = [...courseSessions].sort((a, b) => new Date(a.created_at || a.createdAt || 0) - new Date(b.created_at || b.createdAt || 0));
               
-              // Get enrolled students for the manual check-in dropdown
-              const enrolledStudents = users.filter(u => {
+              const enrolledStudentsList = users.filter(u => {
                 if (u.role !== 'student') return false;
                 return enrollments.some(e => 
                   e.studentId === u.id && 
-                  (e.courseId === activeCourseId || e.course_id === activeCourseId)
+                  (e.courseId === selectedCourseId || e.course_id === selectedCourseId)
                 );
               });
-              
-              const presentStudentIds = new Set(records.map(r => r.student_id || r.studentId));
-              const absentStudents = enrolledStudents.filter(u => !presentStudentIds.has(u.id));
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Manual check-in section for lecturer */}
-                  {isLecturer && (() => {
-                    const matchedAbsent = manualSearchQuery.trim() && !selectedStudentForManual
-                      ? absentStudents.filter(s => 
-                          s.name.toLowerCase().includes(manualSearchQuery.toLowerCase()) || 
-                          s.email.toLowerCase().includes(manualSearchQuery.toLowerCase())
-                        )
-                      : [];
+                <>
+                  <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-title)' }}>
+                        Cumulative Attendance Matrix ({courseCode})
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                        Showing aggregated student attendance logs across all {sortedSessions.length} sessions.
+                      </p>
+                    </div>
 
-                    return (
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '12px', 
-                        padding: '14px', 
-                        backgroundColor: 'rgba(10, 92, 54, 0.04)', 
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px dashed var(--primary)',
-                        flexWrap: 'wrap',
-                        position: 'relative'
-                      }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-title)' }}>
-                          Manual Check-in:
-                        </span>
-                        
-                        {/* Search Input Container */}
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                          <input 
-                            type="text"
-                            className="form-input"
-                            placeholder="Type student name or reg number..."
-                            style={{ width: '320px', padding: '8px 30px 8px 12px', fontSize: '0.85rem', margin: 0 }}
-                            value={manualSearchQuery}
-                            onChange={e => {
-                              setManualSearchQuery(e.target.value);
-                              setSelectedStudentForManual(null);
-                              setShowManualDropdown(true);
-                            }}
-                            onFocus={() => setShowManualDropdown(true)}
-                          />
-                          
-                          {manualSearchQuery && (
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setManualSearchQuery('');
-                                setSelectedStudentForManual(null);
-                              }}
-                              style={{
-                                position: 'absolute',
-                                right: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                padding: '2px',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                            >
-                              <XCircle size={14} />
-                            </button>
-                          )}
-
-                          {/* Autocomplete Dropdown Panel */}
-                          {showManualDropdown && manualSearchQuery.trim() && !selectedStudentForManual && (
-                            <div style={{ 
-                              position: 'absolute', 
-                              top: '100%', 
-                              left: 0, 
-                              right: 0, 
-                              maxHeight: '200px', 
-                              overflowY: 'auto', 
-                              backgroundColor: 'var(--bg-card)', 
-                              border: '1px solid var(--border)',
-                              borderRadius: 'var(--radius-sm)',
-                              boxShadow: 'var(--shadow-lg)',
-                              zIndex: 1000,
-                              marginTop: '4px'
-                            }}>
-                              {matchedAbsent.map(s => (
-                                <div 
-                                  key={s.id} 
-                                  onClick={() => {
-                                    setSelectedStudentForManual(s);
-                                    setManualSearchQuery(`${s.name} (${s.email})`);
-                                    setShowManualDropdown(false);
-                                  }}
-                                  style={{ 
-                                    padding: '8px 12px', 
-                                    cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    borderBottom: '1px solid var(--border)',
-                                    transition: 'background-color 0.2s',
-                                    color: 'var(--text-title)',
-                                    textAlign: 'left'
-                                  }}
-                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(10, 92, 54, 0.08)'}
-                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                >
-                                  <div style={{ fontWeight: 'bold' }}>{s.name}</div>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.email}</div>
-                                </div>
-                              ))}
-                              {matchedAbsent.length === 0 && (
-                                <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                  No absent students match search
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <button 
-                          type="button"
-                          className="btn btn-primary btn-sm" 
-                          disabled={!selectedStudentForManual}
-                          onClick={() => handleMarkManualAttendance(selectedStudentForManual, activeSessionIdForLogs)}
-                          style={{ padding: '8px 16px', fontSize: '0.8rem', height: '36px' }}
-                        >
-                          Mark Present
-                        </button>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          * For students without smartphones/charge
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                          <th style={{ textAlign: 'left', padding: '10px' }}>Student Name</th>
-                          <th style={{ textAlign: 'left', padding: '10px' }}>Reg Number</th>
-                          <th style={{ textAlign: 'left', padding: '10px' }}>Timestamp</th>
-                          <th style={{ textAlign: 'center', padding: '10px' }}>Location coordinates (GPS)</th>
-                          <th style={{ textAlign: 'center', padding: '10px' }}>Logged IP Address</th>
-                          {isLecturer && <th style={{ textAlign: 'center', padding: '10px' }}>Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {records.map(r => (
-                          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '10px', fontWeight: 'bold' }}>{r.student_name || r.studentName}</td>
-                            <td style={{ padding: '10px', fontSize: '0.85rem' }}>{r.reg_no || r.regNo}</td>
-                            <td style={{ padding: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {formatDate(r.marked_at || r.markedAt)}
-                            </td>
-                            <td style={{ padding: '10px', textAlign: 'center' }}>
-                              {((r.gps_lat || r.gpsLat) && (r.gps_lng || r.gpsLng)) ? (
-                                <a 
-                                  href={`https://www.google.com/maps?q=${r.gps_lat || r.gpsLat},${r.gps_lng || r.gpsLng}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="badge badge-primary"
-                                  style={{ 
-                                    display: 'inline-flex', 
-                                    alignItems: 'center', 
-                                    gap: '4px', 
-                                    fontSize: '0.7rem', 
-                                    cursor: 'pointer',
-                                    textDecoration: 'none'
-                                  }}
-                                >
-                                  <MapPin size={12} />
-                                  {parseFloat(r.gps_lat || r.gpsLat).toFixed(4)}, {parseFloat(r.gps_lng || r.gpsLng).toFixed(4)}
-                                </a>
-                              ) : (
-                                <span style={{ 
-                                  padding: '2px 8px', 
-                                  borderRadius: '10px', 
-                                  fontSize: '0.7rem', 
-                                  backgroundColor: 'rgba(100, 116, 139, 0.1)', 
-                                  color: 'var(--text-muted)' 
-                                }}>
-                                  Location Bypassed
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                              {r.ip_address || r.ipAddress || 'Unknown'}
-                            </td>
-                            {isLecturer && (
-                              <td style={{ padding: '10px', textAlign: 'center' }}>
-                                <button 
-                                  onClick={() => {
-                                    if (window.confirm(`Are you sure you want to remove attendance record for ${r.student_name || r.studentName}?`)) {
-                                      onDeleteAttendanceRecord(r.id);
-                                    }
-                                  }}
-                                  className="btn btn-sm"
-                                  style={{ 
-                                    backgroundColor: 'transparent', 
-                                    border: 'none', 
-                                    color: 'var(--color-danger)', 
-                                    cursor: 'pointer',
-                                    padding: '4px'
-                                  }}
-                                  title="Delete Record"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-
-                        {records.length === 0 && (
-                          <tr>
-                            <td colSpan={isLecturer ? 6 : 5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                              No student has marked attendance for this session yet.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                    {sortedSessions.length > 0 && enrolledStudentsList.length > 0 && (
+                      <button
+                        onClick={() => handleExportCumulativeCSV(sortedSessions, enrolledStudentsList)}
+                        style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          height: '32px', 
+                          padding: '0 12px', 
+                          fontSize: '0.75rem', 
+                          backgroundColor: '#107c41', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: 'var(--radius-sm)', 
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={e => e.target.style.backgroundColor = '#0b592e'}
+                        onMouseLeave={e => e.target.style.backgroundColor = '#107c41'}
+                      >
+                        <UserCheck size={14} />
+                        Export Cumulative (.csv)
+                      </button>
+                    )}
                   </div>
-                </div>
+
+                  {sortedSessions.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      No attendance sessions have been created for this course yet.
+                    </div>
+                  ) : enrolledStudentsList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      No students are currently enrolled in this course.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-card)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: 'rgba(10, 92, 54, 0.04)', borderBottom: '1px solid var(--border)' }}>
+                            <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', minWidth: '150px' }}>Student Name</th>
+                            <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', minWidth: '120px' }}>Reg Number</th>
+                            {sortedSessions.map(s => (
+                              <th key={s.id} style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', textAlign: 'center', minWidth: '100px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }} title={s.title}>
+                                    {s.title}
+                                  </span>
+                                  <span style={{ fontSize: '0.65rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>
+                                    {new Date(s.created_at || s.createdAt).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+                                  </span>
+                                </div>
+                              </th>
+                            ))}
+                            <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', textAlign: 'center', minWidth: '90px' }}>Overall %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {enrolledStudentsList.map(student => {
+                            let presentCount = 0;
+                            return (
+                              <tr key={student.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }}>
+                                <td style={{ padding: '12px', fontWeight: 'bold', color: 'var(--text-title)' }}>{student.name}</td>
+                                <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{student.email}</td>
+                                {sortedSessions.map(session => {
+                                  const isPresent = attendanceRecords.some(r => 
+                                    (r.session_id === session.id || r.sessionId === session.id) && 
+                                    (r.student_id === student.id || r.studentId === student.id)
+                                  );
+                                  if (isPresent) presentCount++;
+                                  return (
+                                    <td key={session.id} style={{ padding: '12px', textAlign: 'center' }}>
+                                      {isPresent ? (
+                                        <span style={{ color: 'var(--color-success)', fontWeight: 'bold', fontSize: '0.95rem' }}>✅</span>
+                                      ) : (
+                                        <span style={{ color: 'var(--color-danger)', fontWeight: 'bold', fontSize: '0.95rem' }}>❌</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                <td style={{ padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  {sortedSessions.length > 0 ? (
+                                    <span style={{
+                                      color: (presentCount / sortedSessions.length) >= 0.75 ? 'var(--color-success)' : 'var(--color-warning)'
+                                    }}>
+                                      {((presentCount / sortedSessions.length) * 100).toFixed(0)}%
+                                    </span>
+                                  ) : '0%'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               );
-            })() : (
-              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-                Please select a session to view logs.
-              </div>
-            )}
+            })()}
           </div>
         )}
 

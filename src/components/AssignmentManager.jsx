@@ -533,6 +533,20 @@ function DocPreview({ fileName = '', submission, studentName }) {
   );
 }
 
+const generateShortPaperSubId = (taskId, studentId, prefix = 'sub_p_') => {
+  const str = taskId + '_' + studentId;
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334903);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hashStr = (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+  return prefix + hashStr;
+};
+
 function PaperGradeRow({ sub, studentObj, maxScore, onGradeSubmission, taskId }) {
   const [score, setScore] = useState(sub.score !== undefined && sub.score !== null ? sub.score.toString() : '');
   const [feedback, setFeedback] = useState(sub.feedback || '');
@@ -972,7 +986,7 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
     }
 
     const isVirtual = activeSubmission.id?.startsWith('sub_paper_virtual_');
-    const realSubId = isVirtual ? `sub_paper_${selectedAssignmentForReview.id}_${activeSubmission.studentId}` : activeSubmission.id;
+    const realSubId = isVirtual ? generateShortPaperSubId(selectedAssignmentForReview.id, activeSubmission.studentId) : activeSubmission.id;
 
     onGradeSubmission(
       activeSubmission.id, 

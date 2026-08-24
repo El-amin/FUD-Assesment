@@ -123,6 +123,20 @@ const INITIAL_ENROLLMENTS = [
   { id: 'e5', student_id: 'student_fatima', studentId: 'student_fatima', course_id: 'cosc_305', courseId: 'cosc_305' }
 ];
 
+const generateShortPaperSubId = (taskId, studentId, prefix = 'sub_p_') => {
+  const str = taskId + '_' + studentId;
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334903);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hashStr = (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+  return prefix + hashStr;
+};
+
 export default function App() {
 
   const formatDbError = (context, error) => {
@@ -744,7 +758,7 @@ Possible Solutions:
   // 5. Grade Submission (Lecturer)
   const handleGradeSubmission = async (subId, score, feedback, studentId, taskId) => {
     const isVirtual = subId.startsWith('sub_paper_virtual_');
-    const realSubId = isVirtual ? `sub_paper_${taskId}_${studentId}` : subId;
+    const realSubId = isVirtual ? generateShortPaperSubId(taskId, studentId) : subId;
 
     if (isSupabaseConfigured) {
       if (isVirtual) {
@@ -821,7 +835,7 @@ Possible Solutions:
       }
       
       const submissionsToInsert = results.map(res => {
-        const subId = `sub_paper_${newTest.id}_${res.studentId}`;
+        const subId = generateShortPaperSubId(newTest.id, res.studentId);
         return {
           id: subId,
           task_id: newTest.id,
@@ -848,7 +862,7 @@ Possible Solutions:
     setAssignments(prev => [...prev, newTest]);
     
     const localSubmissions = results.map(res => {
-      const subId = `sub_paper_${newTest.id}_${res.studentId}`;
+      const subId = generateShortPaperSubId(newTest.id, res.studentId);
       return {
         id: subId,
         taskId: newTest.id,

@@ -26,6 +26,7 @@ export default function AttendanceManager({
   const [selectedStudentForManual, setSelectedStudentForManual] = useState(null);
   const [showManualDropdown, setShowManualDropdown] = useState(false);
   const [lecturerAttendanceTab, setLecturerAttendanceTab] = useState('single'); // 'single' or 'aggregated'
+  const [cumulativeSearchQuery, setCumulativeSearchQuery] = useState('');
 
   // Student Location Retrieval States
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -457,7 +458,10 @@ export default function AttendanceManager({
             <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '20px', maxWidth: '380px' }}>
               <button
                 type="button"
-                onClick={() => setLecturerAttendanceTab('single')}
+                onClick={() => {
+                  setLecturerAttendanceTab('single');
+                  setCumulativeSearchQuery('');
+                }}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -474,7 +478,10 @@ export default function AttendanceManager({
               </button>
               <button
                 type="button"
-                onClick={() => setLecturerAttendanceTab('aggregated')}
+                onClick={() => {
+                  setLecturerAttendanceTab('aggregated');
+                  setCumulativeSearchQuery('');
+                }}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -789,6 +796,15 @@ export default function AttendanceManager({
                 );
               });
 
+              const filteredStudents = enrolledStudentsList.filter(student => {
+                if (!cumulativeSearchQuery.trim()) return true;
+                const query = cumulativeSearchQuery.toLowerCase();
+                return (
+                  student.name.toLowerCase().includes(query) || 
+                  student.email.toLowerCase().includes(query)
+                );
+              });
+
               return (
                 <>
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -828,6 +844,38 @@ export default function AttendanceManager({
                     )}
                   </div>
 
+                  {/* Search Bar Input */}
+                  {enrolledStudentsList.length > 0 && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', maxWidth: '380px', position: 'relative' }}>
+                      <input 
+                        type="text"
+                        className="form-input"
+                        placeholder="Search by student name or matric number..."
+                        value={cumulativeSearchQuery}
+                        onChange={e => setCumulativeSearchQuery(e.target.value)}
+                        style={{ height: '36px', fontSize: '0.85rem', paddingRight: '32px', margin: 0 }}
+                      />
+                      {cumulativeSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setCumulativeSearchQuery('')}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)'
+                          }}
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {sortedSessions.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                       No attendance sessions have been created for this course yet.
@@ -835,6 +883,10 @@ export default function AttendanceManager({
                   ) : enrolledStudentsList.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                       No students are currently enrolled in this course.
+                    </div>
+                  ) : filteredStudents.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      No students match "{cumulativeSearchQuery}".
                     </div>
                   ) : (
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-card)' }}>
@@ -859,7 +911,7 @@ export default function AttendanceManager({
                           </tr>
                         </thead>
                         <tbody>
-                          {enrolledStudentsList.map(student => {
+                          {filteredStudents.map(student => {
                             let presentCount = 0;
                             return (
                               <tr key={student.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlusCircle, 
   Calendar, 
@@ -530,6 +530,101 @@ function DocPreview({ fileName = '', submission, studentName }) {
       {/* Preview container */}
       <DocPreviewInner fileName={fileName} submission={submission} studentName={studentName} />
     </div>
+  );
+}
+
+function PaperGradeRow({ sub, studentObj, maxScore, onGradeSubmission, taskId }) {
+  const [score, setScore] = useState(sub.score !== undefined && sub.score !== null ? sub.score.toString() : '');
+  const [feedback, setFeedback] = useState(sub.feedback || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(sub.score !== undefined && sub.score !== null);
+
+  useEffect(() => {
+    setScore(sub.score !== undefined && sub.score !== null ? sub.score.toString() : '');
+    setFeedback(sub.feedback || '');
+    setIsSaved(sub.score !== undefined && sub.score !== null);
+  }, [sub]);
+
+  const handleSave = async () => {
+    if (score === '') {
+      alert('Please enter a score first.');
+      return;
+    }
+    const scoreVal = parseInt(score);
+    if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > maxScore) {
+      alert(`Score must be between 0 and ${maxScore}`);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onGradeSubmission(sub.id, scoreVal, feedback, sub.studentId, taskId);
+      setIsSaved(true);
+    } catch (err) {
+      alert('Failed to save grade: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s', backgroundColor: isSaved ? 'rgba(10, 92, 54, 0.01)' : 'transparent' }}>
+      <td style={{ padding: '12px', fontWeight: 'bold', color: 'var(--text-title)' }}>
+        {studentObj?.name || 'Unknown'}
+      </td>
+      <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        {studentObj?.email || 'N/A'}
+      </td>
+      <td style={{ padding: '12px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+          <input 
+            type="number"
+            className="form-input"
+            min="0"
+            max={maxScore}
+            value={score}
+            onChange={e => {
+              setScore(e.target.value);
+              setIsSaved(false);
+            }}
+            placeholder={`Max: ${maxScore}`}
+            style={{ width: '80px', height: '32px', textAlign: 'center', fontSize: '0.85rem', margin: 0, padding: '4px' }}
+          />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/ {maxScore}</span>
+        </div>
+      </td>
+      <td style={{ padding: '12px' }}>
+        <input 
+          type="text"
+          className="form-input"
+          value={feedback}
+          onChange={e => {
+            setFeedback(e.target.value);
+            setIsSaved(false);
+          }}
+          placeholder="Feedback comments..."
+          style={{ height: '32px', fontSize: '0.8rem', margin: 0, padding: '4px 8px', width: '100%', maxWidth: '300px' }}
+        />
+      </td>
+      <td style={{ padding: '12px', textAlign: 'center' }}>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className={`btn btn-sm ${isSaved ? 'btn-outline' : 'btn-primary'}`}
+          style={{ 
+            padding: '4px 12px', 
+            fontSize: '0.75rem', 
+            minWidth: '75px',
+            margin: 0,
+            borderColor: isSaved ? 'var(--color-success)' : undefined,
+            color: isSaved ? 'var(--color-success)' : undefined
+          }}
+        >
+          {isSaving ? 'Saving...' : isSaved ? '✓ Saved' : 'Save'}
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -1097,158 +1192,226 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                 </button>
               </div>
 
-              {/* Split Workspace */}
-              <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '20px', overflow: 'hidden', flexGrow: 1 }}>
-                
-                {/* LEFT COLUMN: Submissions List roster */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', borderRight: '1px solid var(--border)', paddingRight: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                      Student Submissions ({assignSubmissions.length})
-                    </h4>
-                    
-                    {/* Search Input Bar */}
-                    <div style={{ position: 'relative', width: '100%' }}>
+              {/* Workspace Content */}
+              {isPaperTest ? (
+                // Full-width roster for paper test grading (No previews/clicks needed)
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', flexGrow: 1, minHeight: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '350px', position: 'relative' }}>
                       <input 
                         type="text" 
-                        placeholder="Search student or matric number..." 
+                        placeholder="Search student name or matric number..." 
                         value={submissionSearch}
                         onChange={e => setSubmissionSearch(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px 10px 36px',
-                          fontSize: '0.85rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border)',
-                          backgroundColor: 'var(--bg-card)',
-                          color: 'var(--text-title)',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
+                        className="form-input"
+                        style={{ height: '36px', fontSize: '0.85rem', paddingLeft: '32px', margin: 0 }}
                       />
                       <Search 
                         size={16} 
                         style={{ 
                           position: 'absolute', 
-                          left: '12px', 
+                          left: '10px', 
                           top: '50%', 
                           transform: 'translateY(-50%)', 
                           color: 'var(--text-muted)' 
                         }} 
                       />
                     </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Assessment Type: <strong>Offline Paper-Based Test</strong> | Max Score: <strong>{selectedAssignmentForReview.maxScore || selectedAssignmentForReview.max_score}</strong>
+                    </div>
                   </div>
 
-                   {(() => {
-                    const filteredSubmissions = assignSubmissions.filter(sub => {
-                      const studentObj = users.find(u => u.id === sub.studentId);
-                      const sName = studentObj ? studentObj.name.toLowerCase() : '';
-                      const sEmail = studentObj ? studentObj.email.toLowerCase() : '';
-                      const q = submissionSearch.toLowerCase().trim();
-                      return sName.includes(q) || sEmail.includes(q) || (sub.groupName && sub.groupName.toLowerCase().includes(q));
-                    });
+                  <div style={{ overflowY: 'auto', flexGrow: 1, border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'rgba(10, 92, 54, 0.04)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1 }}>
+                          <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)' }}>Student Name</th>
+                          <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)' }}>Registration No</th>
+                          <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', textAlign: 'center', width: '160px' }}>Score Obtained</th>
+                          <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)' }}>Remarks / Feedback</th>
+                          <th style={{ padding: '12px', fontWeight: '800', color: 'var(--text-title)', textAlign: 'center', width: '120px' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const filtered = assignSubmissions.filter(sub => {
+                            const studentObj = users.find(u => u.id === sub.studentId);
+                            const sName = studentObj ? studentObj.name.toLowerCase() : '';
+                            const sEmail = studentObj ? studentObj.email.toLowerCase() : '';
+                            const q = submissionSearch.toLowerCase().trim();
+                            return sName.includes(q) || sEmail.includes(q);
+                          });
 
-                    // Sort: Ungraded/Pending submissions first, Graded submissions last
-                    const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
-                      const aGraded = a.score !== undefined && a.score !== null;
-                      const bGraded = b.score !== undefined && b.score !== null;
-                      if (aGraded && !bGraded) return 1;
-                      if (!aGraded && bGraded) return -1;
-                      return 0;
-                    });
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                                  No students match search criteria.
+                                </td>
+                              </tr>
+                            );
+                          }
 
-                    return (
-                      <>
-                        {sortedSubmissions.map(sub => {
-                          const studentObj = users.find(u => u.id === sub.studentId);
-                          const isSelected = activeSubmission?.id === sub.id;
-                          
-                          // For group assignment, list group members
-                          const members = selectedAssignmentForReview.isGroup 
-                            ? users.filter(u => u.groupId === sub.groupId)
-                            : [];
-
-                          const hasGrade = sub.score !== undefined && sub.score !== null;
-
-                          return (
-                            <div 
-                              key={sub.id} 
-                              onClick={() => handleSelectActiveSubmission(sub)}
-                              style={{
-                                padding: '14px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid',
-                                borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
-                                backgroundColor: isSelected ? 'rgba(10, 92, 54, 0.03)' : 'var(--bg-card)',
-                                cursor: 'pointer',
-                                transition: 'all var(--transition-fast)',
-                                position: 'relative'
-                              }}
-                            >
-                              {isSelected && (
-                                <div style={{ width: '4px', position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: 'var(--primary)', borderTopLeftRadius: 'var(--radius-md)', borderBottomLeftRadius: 'var(--radius-md)' }} />
-                              )}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-title)' }}>
-                                  {studentObj?.name || 'Unknown'}
-                                </span>
-                                <span className={`badge ${hasGrade ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
-                                  {hasGrade ? `${sub.score} / ${selectedAssignmentForReview.maxScore}` : 'Pending'}
-                                </span>
-                              </div>
-
-                              {selectedAssignmentForReview.isGroup ? (
-                                <span className="badge badge-warning" style={{ fontSize: '0.65rem', marginBottom: '6px' }}>{sub.groupName}</span>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Individual</span>
-                              )}
-
-                              <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-                                  📄 {sub.attachmentName || 'Submission.pdf'}
-                                </span>
-                                <span>{sub.submittedAt}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {assignSubmissions.length === 0 && (
-                          <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            <Clock size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
-                            <p>No submissions uploaded yet.</p>
-                          </div>
-                        )}
-
-                        {assignSubmissions.length > 0 && filteredSubmissions.length === 0 && (
-                          <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            <AlertCircle size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
-                            <p>No submissions match your search.</p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                          return filtered.map(sub => {
+                            const studentObj = users.find(u => u.id === sub.studentId);
+                            return (
+                              <PaperGradeRow 
+                                key={sub.id}
+                                sub={sub}
+                                studentObj={studentObj}
+                                maxScore={selectedAssignmentForReview.maxScore || selectedAssignmentForReview.max_score || 100}
+                                onGradeSubmission={onGradeSubmission}
+                                taskId={selectedAssignmentForReview.id}
+                              />
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '20px', overflow: 'hidden', flexGrow: 1 }}>
+                  
+                  {/* LEFT COLUMN: Submissions List roster */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', borderRight: '1px solid var(--border)', paddingRight: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+                        Student Submissions ({assignSubmissions.length})
+                      </h4>
+                      
+                      {/* Search Input Bar */}
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search student or matric number..." 
+                          value={submissionSearch}
+                          onChange={e => setSubmissionSearch(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            fontSize: '0.85rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-title)',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        <Search 
+                          size={16} 
+                          style={{ 
+                            position: 'absolute', 
+                            left: '12px', 
+                            top: '50%', 
+                            transform: 'translateY(-50%)', 
+                            color: 'var(--text-muted)' 
+                          }} 
+                        />
+                      </div>
+                    </div>
 
-                {/* RIGHT COLUMN: Interactive Document Preview & Grade Form */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingLeft: '4px' }}>
-                  {activeSubmission ? (() => {
-                    const studentObj = users.find(u => u.id === activeSubmission.studentId);
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        
-                        {isPaperTest ? (
-                          <div style={{ padding: '16px', backgroundColor: 'rgba(10, 92, 54, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                              <Award size={16} />
-                              Offline Paper-Based Test Grade Entry
+                    {(() => {
+                      const filteredSubmissions = assignSubmissions.filter(sub => {
+                        const studentObj = users.find(u => u.id === sub.studentId);
+                        const sName = studentObj ? studentObj.name.toLowerCase() : '';
+                        const sEmail = studentObj ? studentObj.email.toLowerCase() : '';
+                        const q = submissionSearch.toLowerCase().trim();
+                        return sName.includes(q) || sEmail.includes(q) || (sub.groupName && sub.groupName.toLowerCase().includes(q));
+                      });
+
+                      // Sort: Ungraded/Pending submissions first, Graded submissions last
+                      const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
+                        const aGraded = a.score !== undefined && a.score !== null;
+                        const bGraded = b.score !== undefined && b.score !== null;
+                        if (aGraded && !bGraded) return 1;
+                        if (!aGraded && bGraded) return -1;
+                        return 0;
+                      });
+
+                      return (
+                        <>
+                          {sortedSubmissions.map(sub => {
+                            const studentObj = users.find(u => u.id === sub.studentId);
+                            const isSelected = activeSubmission?.id === sub.id;
+                            
+                            // For group assignment, list group members
+                            const members = selectedAssignmentForReview.isGroup 
+                              ? users.filter(u => u.groupId === sub.groupId)
+                              : [];
+
+                            const hasGrade = sub.score !== undefined && sub.score !== null;
+
+                            return (
+                              <div 
+                                key={sub.id} 
+                                onClick={() => handleSelectActiveSubmission(sub)}
+                                style={{
+                                  padding: '14px',
+                                  borderRadius: 'var(--radius-md)',
+                                  border: '1px solid',
+                                  borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                                  backgroundColor: isSelected ? 'rgba(10, 92, 54, 0.03)' : 'var(--bg-card)',
+                                  cursor: 'pointer',
+                                  transition: 'all var(--transition-fast)',
+                                  position: 'relative'
+                                }}
+                              >
+                                {isSelected && (
+                                  <div style={{ width: '4px', position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: 'var(--primary)', borderTopLeftRadius: 'var(--radius-md)', borderBottomLeftRadius: 'var(--radius-md)' }} />
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                                  <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-title)' }}>
+                                    {studentObj?.name || 'Unknown'}
+                                  </span>
+                                  <span className={`badge ${hasGrade ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
+                                    {hasGrade ? `${sub.score} / ${selectedAssignmentForReview.maxScore}` : 'Pending'}
+                                  </span>
+                                </div>
+
+                                {selectedAssignmentForReview.isGroup ? (
+                                  <span className="badge badge-warning" style={{ fontSize: '0.65rem', marginBottom: '6px' }}>{sub.groupName}</span>
+                                ) : (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Individual</span>
+                                )}
+
+                                <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                                    📄 {sub.attachmentName || 'Submission.pdf'}
+                                  </span>
+                                  <span>{sub.submittedAt}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {assignSubmissions.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                              <Clock size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
+                              <p>No submissions uploaded yet.</p>
                             </div>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                              Enter marks for student: <strong>{studentObj?.name}</strong> ({studentObj?.email}).
-                            </p>
-                          </div>
-                        ) : (
+                          )}
+
+                          {assignSubmissions.length > 0 && filteredSubmissions.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                              <Search size={32} style={{ margin: '0 auto 8px', color: 'var(--text-muted)' }} />
+                              <p>No submissions match your search.</p>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* RIGHT COLUMN: Interactive Document Preview & Grade Form */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingLeft: '4px' }}>
+                    {activeSubmission ? (() => {
+                      const studentObj = users.find(u => u.id === activeSubmission.studentId);
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          
                           <>
                             {/* Preview Top Header info bar */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
@@ -1304,18 +1467,16 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                               }
                             `}</style>
                           </>
-                        )}
 
-                        {/* Grading Form Panel */}
-                        <div className="card" style={{ border: '1px solid var(--primary)', borderLeft: '4px solid var(--primary)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <Sparkles size={18} style={{ color: 'var(--primary)' }} />
-                              <h4 style={{ fontSize: '1rem', fontWeight: '700' }}>Grading Form Sheet</h4>
-                            </div>
-                            
-                            {/* Grading Mode Toggle */}
-                            {!isPaperTest && (
+                          {/* Grading Form Panel */}
+                          <div className="card" style={{ border: '1px solid var(--primary)', borderLeft: '4px solid var(--primary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Sparkles size={18} style={{ color: 'var(--primary)' }} />
+                                <h4 style={{ fontSize: '1rem', fontWeight: '700' }}>Grading Form Sheet</h4>
+                              </div>
+                              
+                              {/* Grading Mode Toggle */}
                               <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                                 <button
                                   type="button"
@@ -1357,223 +1518,221 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                                   AI Assistant
                                 </button>
                               </div>
-                            )}
-                          </div>
+                            </div>
 
-                          {/* AI Assistant Setup Form */}
-                          {gradingMode === 'ai' && (
-                            <div style={{ 
-                              padding: '12px', 
-                              backgroundColor: 'rgba(10, 92, 54, 0.03)', 
-                              border: '1px dashed var(--primary)', 
-                              borderRadius: 'var(--radius-md)', 
-                              marginBottom: '16px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '10px'
-                            }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed rgba(10, 92, 54, 0.1)', paddingBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                                  <Sparkles size={14} />
-                                  <span>AI Grading Assistant</span>
-                                </div>
-                                {geminiApiKey.trim() && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowAiSetup(!showAiSetup)}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      color: 'var(--primary)',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 'bold',
-                                      cursor: 'pointer',
-                                      padding: '2px 6px',
-                                      borderRadius: '4px',
-                                      backgroundColor: 'rgba(10, 92, 54, 0.08)'
-                                    }}
-                                  >
-                                    {showAiSetup ? 'Hide Settings' : 'Edit Settings'}
-                                  </button>
-                                )}
-                              </div>
-
-                              {showAiSetup ? (
-                                <>
-                                  <div className="form-group" style={{ margin: 0 }}>
-                                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Model Version</label>
-                                    <select 
-                                      className="form-select"
-                                      value={aiModel}
-                                      onChange={e => setAiModel(e.target.value)}
-                                      style={{ fontSize: '0.8rem', padding: '4px 10px', height: '32px', margin: 0 }}
+                            {/* AI Assistant Setup Form */}
+                            {gradingMode === 'ai' && (
+                              <div style={{ 
+                                padding: '12px', 
+                                backgroundColor: 'rgba(10, 92, 54, 0.03)', 
+                                border: '1px dashed var(--primary)', 
+                                borderRadius: 'var(--radius-md)', 
+                                marginBottom: '16px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '10px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed rgba(10, 92, 54, 0.1)', paddingBottom: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                    <Sparkles size={14} />
+                                    <span>AI Grading Assistant</span>
+                                  </div>
+                                  {geminiApiKey.trim() && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowAiSetup(!showAiSetup)}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--primary)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        backgroundColor: 'rgba(10, 92, 54, 0.08)'
+                                      }}
                                     >
-                                      <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lite / Fast)</option>
-                                      <option value="gemini-3.5-flash">gemini-3.5-flash (High performance)</option>
-                                      <option value="gemini-1.5-flash">gemini-1.5-flash (Stable default)</option>
-                                      <option value="gemini-1.5-pro">gemini-1.5-pro (Complex reasoning)</option>
-                                    </select>
-                                  </div>
-                                  
-                                  <div className="form-group" style={{ margin: 0 }}>
-                                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Gemini API Key</label>
-                                    <input 
-                                      type="password"
-                                      className="form-input"
-                                      placeholder="Enter your Gemini API Key..."
-                                      value={geminiApiKey}
-                                      onChange={e => setGeminiApiKey(e.target.value)}
-                                      style={{ fontSize: '0.8rem', padding: '6px 10px', height: '32px', margin: 0 }}
-                                    />
-                                  </div>
-
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <input 
-                                      type="checkbox"
-                                      id="saveApiKey"
-                                      checked={saveApiKeyLocally}
-                                      onChange={e => setSaveApiKeyLocally(e.target.checked)}
-                                      style={{ width: '14px', height: '14px', cursor: 'pointer' }}
-                                    />
-                                    <label htmlFor="saveApiKey" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                                      Save API Key in browser local storage
-                                    </label>
-                                  </div>
-                                </>
-                              ) : (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                  <span>🔑 API Credentials Active</span>
-                                  <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>({aiModel})</span>
+                                      {showAiSetup ? 'Hide Settings' : 'Edit Settings'}
+                                    </button>
+                                  )}
                                 </div>
-                              )}
 
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                disabled={isAiLoading || !geminiApiKey.trim()}
-                                onClick={() => handleGenerateAiGrade(studentObj)}
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '6px', 
-                                  fontSize: '0.8rem', 
-                                  height: '32px',
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  gap: '6px',
-                                  margin: 0
-                                }}
-                              >
-                                {isAiLoading ? (
+                                {showAiSetup ? (
                                   <>
-                                    <span className="ai-spinner-icon" style={{ 
-                                      width: '12px', 
-                                      height: '12px', 
-                                      border: '2px solid white', 
-                                      borderTop: '2px solid transparent', 
-                                      borderRadius: '50%',
-                                      display: 'inline-block'
-                                    }}></span>
-                                    Analyzing submission...
+                                    <div className="form-group" style={{ margin: 0 }}>
+                                      <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Model Version</label>
+                                      <select 
+                                        className="form-select"
+                                        value={aiModel}
+                                        onChange={e => setAiModel(e.target.value)}
+                                        style={{ fontSize: '0.8rem', padding: '4px 10px', height: '32px', margin: 0 }}
+                                      >
+                                        <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lite / Fast)</option>
+                                        <option value="gemini-3.5-flash">gemini-3.5-flash (High performance)</option>
+                                        <option value="gemini-1.5-flash">gemini-1.5-flash (Stable default)</option>
+                                        <option value="gemini-1.5-pro">gemini-1.5-pro (Complex reasoning)</option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div className="form-group" style={{ margin: 0 }}>
+                                      <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Gemini API Key</label>
+                                      <input 
+                                        type="password"
+                                        className="form-input"
+                                        placeholder="Enter your Gemini API Key..."
+                                        value={geminiApiKey}
+                                        onChange={e => setGeminiApiKey(e.target.value)}
+                                        style={{ fontSize: '0.8rem', padding: '6px 10px', height: '32px', margin: 0 }}
+                                      />
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <input 
+                                        type="checkbox"
+                                        id="saveApiKey"
+                                        checked={saveApiKeyLocally}
+                                        onChange={e => setSaveApiKeyLocally(e.target.checked)}
+                                        style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                      />
+                                      <label htmlFor="saveApiKey" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                                        Save API Key in browser local storage
+                                      </label>
+                                    </div>
                                   </>
                                 ) : (
-                                  <>
-                                    <Sparkles size={14} />
-                                    Generate AI Suggestion
-                                  </>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    <span>🔑 API Credentials Active</span>
+                                    <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>({aiModel})</span>
+                                  </div>
                                 )}
-                              </button>
 
-                              {aiError && (
-                                <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '2px' }}>
-                                  ⚠️ {aiError}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  disabled={isAiLoading || !geminiApiKey.trim()}
+                                  onClick={() => handleGenerateAiGrade(studentObj)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '6px', 
+                                    fontSize: '0.8rem', 
+                                    height: '32px',
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: '6px',
+                                    margin: 0
+                                  }}
+                                >
+                                  {isAiLoading ? (
+                                    <>
+                                      <span className="ai-spinner-icon" style={{ 
+                                        width: '12px', 
+                                        height: '12px', 
+                                        border: '2px solid white', 
+                                        borderTop: '2px solid transparent', 
+                                        borderRadius: '50%',
+                                        display: 'inline-block'
+                                      }}></span>
+                                      Analyzing submission...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={14} />
+                                      Generate AI Suggestion
+                                    </>
+                                  )}
+                                </button>
 
-                          {aiGeneratedTag && (
-                            <div style={{ 
-                              padding: '8px 12px', 
-                              backgroundColor: 'rgba(10, 92, 54, 0.08)', 
-                              border: '1px solid var(--primary)', 
-                              borderRadius: 'var(--radius-sm)', 
-                              fontSize: '0.75rem', 
-                              color: 'var(--primary)', 
-                              fontWeight: 'bold',
-                              marginBottom: '16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
-                              <Sparkles size={14} />
-                              <span>AI Suggestion Loaded. Review or modify before saving.</span>
-                            </div>
-                          )}
-
-                          <form onSubmit={handleSaveGradeInline} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="form-group" style={{ maxWidth: '200px', margin: 0 }}>
-                              <label className="form-label">Score (Max: {selectedAssignmentForReview.maxScore})</label>
-                              <input 
-                                type="number" 
-                                className="form-input" 
-                                min="0" 
-                                max={selectedAssignmentForReview.maxScore}
-                                value={gradeScore}
-                                onChange={e => {
-                                  setGradeScore(e.target.value);
-                                  setAiGeneratedTag(false);
-                                }}
-                                required
-                              />
-                            </div>
-
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">Academic Feedback Comments</label>
-                              <textarea 
-                                className="form-textarea" 
-                                placeholder="Write comments regarding code quality, formatting, schema correctness..."
-                                value={gradeFeedback}
-                                onChange={e => {
-                                  setGradeFeedback(e.target.value);
-                                  setAiGeneratedTag(false);
-                                }}
-                                style={{ minHeight: '80px' }}
-                              />
-                            </div>
-
-                            {activeSubmission.isGroupSubmission && (
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 12px', backgroundColor: 'rgba(223, 177, 25, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(223, 177, 25, 0.15)', fontSize: '0.75rem' }}>
-                                <Users size={16} style={{ color: 'var(--secondary-hover)', flexShrink: 0 }} />
-                                <span>
-                                  <strong>Group Grade Sync Action</strong>: Saving will apply this score to all student members of <strong>{activeSubmission.groupName}</strong>.
-                                </span>
+                                {aiError && (
+                                  <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '2px' }}>
+                                    ⚠️ {aiError}
+                                  </div>
+                                )}
                               </div>
                             )}
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-                              <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '8px 16px', margin: 0 }}>
-                                Save Grade & Feedback
-                              </button>
-                            </div>
-                          </form>
+                            {aiGeneratedTag && (
+                              <div style={{ 
+                                padding: '8px 12px', 
+                                backgroundColor: 'rgba(10, 92, 54, 0.08)', 
+                                border: '1px solid var(--primary)', 
+                                borderRadius: 'var(--radius-sm)', 
+                                fontSize: '0.75rem', 
+                                color: 'var(--primary)', 
+                                fontWeight: 'bold',
+                                marginBottom: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}>
+                                <Sparkles size={14} />
+                                <span>AI Suggestion Loaded. Review or modify before saving.</span>
+                              </div>
+                            )}
+
+                            <form onSubmit={handleSaveGradeInline} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              <div className="form-group" style={{ maxWidth: '200px', margin: 0 }}>
+                                <label className="form-label">Score (Max: {selectedAssignmentForReview.maxScore})</label>
+                                <input 
+                                  type="number" 
+                                  className="form-input" 
+                                  min="0" 
+                                  max={selectedAssignmentForReview.maxScore}
+                                  value={gradeScore}
+                                  onChange={e => {
+                                    setGradeScore(e.target.value);
+                                    setAiGeneratedTag(false);
+                                  }}
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label">Academic Feedback Comments</label>
+                                <textarea 
+                                  className="form-textarea" 
+                                  placeholder="Write comments regarding code quality, formatting, schema correctness..."
+                                  value={gradeFeedback}
+                                  onChange={e => {
+                                    setGradeFeedback(e.target.value);
+                                    setAiGeneratedTag(false);
+                                  }}
+                                  style={{ minHeight: '80px' }}
+                                />
+                              </div>
+
+                              {activeSubmission.isGroupSubmission && (
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 12px', backgroundColor: 'rgba(223, 177, 25, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(223, 177, 25, 0.15)', fontSize: '0.75rem' }}>
+                                  <Users size={16} style={{ color: 'var(--secondary-hover)', flexShrink: 0 }} />
+                                  <span>
+                                    <strong>Group Grade Sync Action</strong>: Saving will apply this score to all student members of <strong>{activeSubmission.groupName}</strong>.
+                                  </span>
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                                <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '8px 16px', margin: 0 }}>
+                                  Save Grade & Feedback
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+
                         </div>
-
+                      );
+                    })() : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', textAlign: 'center', minHeight: '400px' }}>
+                        <Eye size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.7 }} />
+                        <h4 style={{ color: 'var(--text-title)' }}>Online Document Previewer</h4>
+                        <p style={{ maxWidth: '350px', fontSize: '0.85rem', marginTop: '6px' }}>
+                          Select a student submission from the left panel. You can inspect their code files, slides, and reports directly on-screen without downloads.
+                        </p>
                       </div>
-                    );
-                  })() : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', textAlign: 'center', minHeight: '400px' }}>
-                      <Eye size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.7 }} />
-                      <h4 style={{ color: 'var(--text-title)' }}>Online Document Previewer</h4>
-                      <p style={{ maxWidth: '350px', fontSize: '0.85rem', marginTop: '6px' }}>
-                        Select a student submission from the left panel. You can inspect their code files, slides, and reports directly on-screen without downloads.
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-
-              </div>
-
+              )}
             </div>
           </div>
         );

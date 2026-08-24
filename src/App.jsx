@@ -765,6 +765,70 @@ Possible Solutions:
     triggerToast(`Grade recorded for ${subToGrade?.isGroupSubmission ? subToGrade.groupName : 'student'}!`);
   };
 
+  const handleAddPaperTestResults = async (newTest, results) => {
+    if (isSupabaseConfigured) {
+      const { error: assignError } = await supabase.from('assignments').insert([{
+        id: newTest.id,
+        course_id: newTest.courseId,
+        title: newTest.title,
+        description: newTest.description ? `${newTest.description} [Paper-based Test]` : 'Paper-based Test',
+        max_score: newTest.maxScore,
+        due_date: newTest.dueDate,
+        is_group: false,
+        questions: 'Paper-based Test: Marks entered manually by Lecturer.'
+      }]);
+      
+      if (assignError) {
+        alert("SQL Write Error for Paper Test: " + assignError.message);
+        return;
+      }
+      
+      const submissionsToInsert = results.map(res => {
+        const subId = `sub_paper_${newTest.id}_${res.studentId}`;
+        return {
+          id: subId,
+          task_id: newTest.id,
+          student_id: res.studentId,
+          type: 'assignment',
+          is_group_submission: false,
+          score: res.score,
+          feedback: res.feedback || 'Paper-based test score.',
+          is_released: true,
+          submitted_at: new Date().toISOString()
+        };
+      });
+      
+      if (submissionsToInsert.length > 0) {
+        const { error: subError } = await supabase.from('submissions').insert(submissionsToInsert);
+        if (subError) {
+          alert("SQL Write Error for Marks: " + subError.message);
+          return;
+        }
+      }
+    }
+    
+    // Update local state
+    setAssignments(prev => [...prev, newTest]);
+    
+    const localSubmissions = results.map(res => {
+      const subId = `sub_paper_${newTest.id}_${res.studentId}`;
+      return {
+        id: subId,
+        taskId: newTest.id,
+        studentId: res.studentId,
+        type: 'assignment',
+        isGroupSubmission: false,
+        score: res.score,
+        feedback: res.feedback || 'Paper-based test score.',
+        isReleased: true,
+        submittedAt: new Date().toISOString()
+      };
+    });
+    
+    setSubmissions(prev => [...prev, ...localSubmissions]);
+    triggerToast(`Paper Test "${newTest.title}" recorded and Gradebook updated!`);
+  };
+
   // 6. Group CRUD Handlers (Lecturer)
   const handleAddGroup = async (newGroup) => {
     if (isSupabaseConfigured) {
@@ -1924,6 +1988,7 @@ Possible Solutions:
               initialCourseId={selectedCourseId}
               enrollments={enrollments}
               groups={groups}
+              onAddPaperTestResults={handleAddPaperTestResults}
             />
           )}
 

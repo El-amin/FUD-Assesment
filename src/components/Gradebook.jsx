@@ -10,17 +10,88 @@ export default function Gradebook({
   submissions,
   initialCourseId,
   enrollments = [],
-  groups = []
+  groups = [],
+  onAddPaperTestResults
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const user = users.find(u => u.id === currentRole) || users[0];
   const isLecturer = user.role === 'lecturer';
+
+  // Paper Test Form States
+  const [showPaperTestModal, setShowPaperTestModal] = useState(false);
+  const [paperTestTitle, setPaperTestTitle] = useState('');
+  const [paperTestMaxScore, setPaperTestMaxScore] = useState(30);
+  const [paperTestDueDate, setPaperTestDueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [studentMarks, setStudentMarks] = useState({});
+  const [studentFeedbacks, setStudentFeedbacks] = useState({});
 
   useEffect(() => {
     if (initialCourseId) {
       setSelectedCourseId(initialCourseId);
     }
   }, [initialCourseId]);
+
+  const handleSavePaperTest = (e, studentsList) => {
+    e.preventDefault();
+
+    if (!paperTestTitle.trim()) {
+      alert("Please enter a title for the paper test.");
+      return;
+    }
+
+    const maxScoreVal = parseInt(paperTestMaxScore);
+    if (isNaN(maxScoreVal) || maxScoreVal <= 0) {
+      alert("Please enter a valid maximum score.");
+      return;
+    }
+
+    const results = [];
+    let hasValidationError = false;
+
+    studentsList.forEach(student => {
+      const scoreStr = studentMarks[student.id];
+      if (scoreStr !== undefined && scoreStr !== '') {
+        const scoreNum = parseInt(scoreStr);
+        if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > maxScoreVal) {
+          alert(`Marks for student ${student.name} must be a number between 0 and ${maxScoreVal}.`);
+          hasValidationError = true;
+          return;
+        }
+        results.push({
+          studentId: student.id,
+          score: scoreNum,
+          feedback: studentFeedbacks[student.id] || 'Paper-based test score.'
+        });
+      }
+    });
+
+    if (hasValidationError) return;
+
+    if (results.length === 0) {
+      if (!confirm("You have not entered scores for any students. Do you still want to create this assessment sheet?")) {
+        return;
+      }
+    }
+
+    const newTest = {
+      id: `assign_paper_${Date.now()}`,
+      courseId: selectedCourseId,
+      title: paperTestTitle.trim(),
+      description: `Paper-based Test conducted on ${paperTestDueDate}.`,
+      maxScore: maxScoreVal,
+      dueDate: paperTestDueDate,
+      isGroup: false
+    };
+
+    onAddPaperTestResults(newTest, results);
+
+    // Reset fields
+    setPaperTestTitle('');
+    setPaperTestMaxScore(30);
+    setStudentMarks({});
+    setStudentFeedbacks({});
+    setShowPaperTestModal(false);
+  };
 
   const renderStudentGradebook = () => {
     const studentId = user.id;
@@ -409,6 +480,15 @@ export default function Gradebook({
               <Download size={18} />
               Export Roster CSV
             </button>
+            <button 
+              className="btn btn-primary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              onClick={() => setShowPaperTestModal(true)}
+              disabled={students.length === 0}
+            >
+              <Award size={18} />
+              Record Paper Marks
+            </button>
           </div>
         </div>
 
@@ -489,6 +569,127 @@ export default function Gradebook({
             </table>
           </div>
         </div>
+
+        {/* Paper Test Scoring Modal */}
+        {showPaperTestModal && (
+          <div className="modal-overlay" onClick={() => setShowPaperTestModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Award size={22} style={{ color: 'var(--primary)' }} />
+                  Record Paper-Based Test Results
+                </h3>
+                <button 
+                  onClick={() => setShowPaperTestModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 'bold' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={(e) => handleSavePaperTest(e, students)} style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflow: 'hidden' }}>
+                <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1.2fr', gap: '14px', marginBottom: '4px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Test Title / Topic</label>
+                    <input 
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Mid-Semester CA Test"
+                      value={paperTestTitle}
+                      onChange={e => setPaperTestTitle(e.target.value)}
+                      style={{ height: '36px', fontSize: '0.85rem' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Max Score</label>
+                    <input 
+                      type="number"
+                      className="form-input"
+                      min="1"
+                      value={paperTestMaxScore}
+                      onChange={e => setPaperTestMaxScore(parseInt(e.target.value) || 0)}
+                      style={{ height: '36px', fontSize: '0.85rem' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Date Conducted</label>
+                    <input 
+                      type="date"
+                      className="form-input"
+                      value={paperTestDueDate}
+                      onChange={e => setPaperTestDueDate(e.target.value)}
+                      style={{ height: '36px', fontSize: '0.85rem' }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', flex: 1 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr 1.2fr 1.8fr', padding: '10px 14px', backgroundColor: 'rgba(10, 92, 54, 0.04)', borderBottom: '1px solid var(--border)', fontWeight: 'bold', fontSize: '0.8rem', color: 'var(--text-title)' }}>
+                    <span>Student Name</span>
+                    <span>Registration No</span>
+                    <span style={{ textAlign: 'center' }}>Score Obtained</span>
+                    <span>Remarks / Feedback</span>
+                  </div>
+                  <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    {students.map(student => (
+                      <div key={student.id} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr 1.2fr 1.8fr', padding: '8px 14px', alignItems: 'center', borderBottom: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                        <span style={{ fontWeight: '700' }}>{student.name}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{student.email}</span>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <input 
+                            type="number"
+                            className="form-input"
+                            min="0"
+                            max={paperTestMaxScore}
+                            placeholder={`Max: ${paperTestMaxScore}`}
+                            value={studentMarks[student.id] || ''}
+                            onChange={e => setStudentMarks({
+                              ...studentMarks,
+                              [student.id]: e.target.value
+                            })}
+                            style={{ width: '90px', height: '32px', textAlign: 'center', fontSize: '0.85rem', margin: 0, padding: '4px' }}
+                          />
+                        </div>
+                        <input 
+                          type="text"
+                          className="form-input"
+                          placeholder="Feedback comments..."
+                          value={studentFeedbacks[student.id] || ''}
+                          onChange={e => setStudentFeedbacks({
+                            ...studentFeedbacks,
+                            [student.id]: e.target.value
+                          })}
+                          style={{ height: '32px', fontSize: '0.8rem', margin: 0, padding: '4px 8px' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline" 
+                    onClick={() => setShowPaperTestModal(false)}
+                    style={{ padding: '8px 16px', margin: 0 }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    style={{ padding: '8px 24px', margin: 0 }}
+                  >
+                    Publish Test Grades
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

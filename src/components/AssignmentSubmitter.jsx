@@ -149,18 +149,26 @@ export default function AssignmentSubmitter({
         {assignments.map(assign => {
           const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
           const status = getSubmissionStatus(assign);
-          const isGraded = status.submitted && status.score !== undefined && status.score !== null;
+          const isGraded = (status.submitted || assign.id?.startsWith('assign_paper_')) && status.score !== undefined && status.score !== null;
           const isGroupAssign = assign.isGroup || assign.is_group;
+          const isPaperTest = assign.id?.startsWith('assign_paper_') || (assign.description && assign.description.includes('[Paper-based Test]'));
 
           return (
             <div key={assign.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <span className="badge badge-primary">{course ? course.code : 'General'}</span>
-                  <span className={`badge ${isGroupAssign ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {isGroupAssign ? <Users size={12} /> : <FileText size={12} />}
-                    {isGroupAssign ? 'Group Project' : 'Individual'}
-                  </span>
+                  {isPaperTest ? (
+                    <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(100, 116, 139, 0.1)', color: 'var(--text-muted)' }}>
+                      <Award size={12} />
+                      Paper-Based Test
+                    </span>
+                  ) : (
+                    <span className={`badge ${isGroupAssign ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {isGroupAssign ? <Users size={12} /> : <FileText size={12} />}
+                      {isGroupAssign ? 'Group Project' : 'Individual'}
+                    </span>
+                  )}
                 </div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px' }}>{assign.title}</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -213,121 +221,151 @@ export default function AssignmentSubmitter({
 
               {/* Submission State Footer */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <button 
-                  type="button" 
-                  className="btn btn-outline btn-sm"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'black' }}
-                  onClick={() => setViewingAssignmentDetails(assign)}
-                >
-                  <Eye size={14} />
-                  View Questions
-                </button>
-                {status.noGroup ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-danger)', fontSize: '0.8rem', fontWeight: '600' }}>
-                      <AlertTriangle size={16} />
-                      <span>No Group Assigned yet!</span>
-                    </div>
-                    <button className="btn btn-outline btn-sm" disabled style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed' }}>
-                      Submit Locked
-                    </button>
-                  </div>
-                ) : status.submitted ? (
+                {isPaperTest ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', width: '100%' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle size={16} style={{ color: 'var(--color-success)' }} />
+                        <CheckCircle size={16} style={{ color: isGraded ? 'var(--color-success)' : 'var(--text-muted)' }} />
                         <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>
-                          {isGraded ? 'Graded' : 'Submitted'}
+                          {isGraded ? 'Graded' : 'Awaiting Grading'}
                         </span>
                       </div>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', marginLeft: 'auto', color: isGraded ? 'var(--primary)' : 'var(--color-warning)' }}>
-                        {isGraded ? `${status.score} / ${assign.maxScore}` : 'Pending Grade'}
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', marginLeft: 'auto', color: isGraded ? 'var(--primary)' : 'var(--text-muted)' }}>
+                        {isGraded ? `${status.score} / ${assign.maxScore}` : '-'}
                       </span>
                     </div>
 
-                    <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        📄 <strong>{status.attachmentName}</strong>
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '2px' }}>
-                        Uploaded by: {status.submitterName}
-                      </div>
-
+                    <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      Offline Paper-Based Assessment. Scores are uploaded manually by your course lecturer. No online submission required.
                       {isGraded && status.feedback && (
-                        <div style={{ marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '6px' }}>
-                          <strong>Lecturer Feedback:</strong>
+                        <div style={{ marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '6px', color: 'var(--text-main)', fontStyle: 'normal' }}>
+                          <strong>Feedback:</strong>
                           <p style={{ color: 'var(--primary)', fontStyle: 'italic', marginTop: '2px' }}>
                             "{status.feedback}"
                           </p>
                         </div>
                       )}
                     </div>
-                    {!isGraded ? (
+                  </div>
+                ) : (
+                  <>
+                    <button 
+                      type="button" 
+                      className="btn btn-outline btn-sm"
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'black' }}
+                      onClick={() => setViewingAssignmentDetails(assign)}
+                    >
+                      <Eye size={14} />
+                      View Questions
+                    </button>
+                    {status.noGroup ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-danger)', fontSize: '0.8rem', fontWeight: '600' }}>
+                          <AlertTriangle size={16} />
+                          <span>No Group Assigned yet!</span>
+                        </div>
+                        <button className="btn btn-outline btn-sm" disabled style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed' }}>
+                          Submit Locked
+                        </button>
+                      </div>
+                    ) : status.submitted ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', width: '100%' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <CheckCircle size={16} style={{ color: 'var(--color-success)' }} />
+                            <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>
+                              {isGraded ? 'Graded' : 'Submitted'}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', marginLeft: 'auto', color: isGraded ? 'var(--primary)' : 'var(--color-warning)' }}>
+                            {isGraded ? `${status.score} / ${assign.maxScore}` : 'Pending Grade'}
+                          </span>
+                        </div>
+
+                        <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            📄 <strong>{status.attachmentName}</strong>
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '2px' }}>
+                            Uploaded by: {status.submitterName}
+                          </div>
+
+                          {isGraded && status.feedback && (
+                            <div style={{ marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '6px' }}>
+                              <strong>Lecturer Feedback:</strong>
+                              <p style={{ color: 'var(--primary)', fontStyle: 'italic', marginTop: '2px' }}>
+                                "{status.feedback}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        {!isGraded ? (
+                          isPastDue(assign.dueDate || assign.due_date) ? (
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              disabled
+                              style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                            >
+                              🔒 Closed (Due Date Passed)
+                            </button>
+                          ) : status.isGroupSubmitLocked ? (
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              disabled
+                              style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                              title={`Only the group leader (${status.leaderName}) can resubmit`}
+                            >
+                              🔒 Resubmission Locked (Leader Only)
+                            </button>
+                          ) : (
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              onClick={() => handleOpenSubmit(assign)}
+                            >
+                              Resubmit Work
+                            </button>
+                          )
+                        ) : (
+                          <button 
+                            className="btn btn-outline btn-sm" 
+                            disabled
+                            style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          >
+                            🔒 Resubmission Locked (Graded)
+                          </button>
+                        )}
+                      </div>
+                    ) : (
                       isPastDue(assign.dueDate || assign.due_date) ? (
                         <button 
                           className="btn btn-outline btn-sm" 
                           disabled
-                          style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
-                          🔒 Closed (Due Date Passed)
+                          ❌ Closed (Due Date Passed)
                         </button>
                       ) : status.isGroupSubmitLocked ? (
-                        <button 
-                          className="btn btn-outline btn-sm" 
-                          disabled
-                          style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          title={`Only the group leader (${status.leaderName}) can resubmit`}
-                        >
-                          🔒 Resubmission Locked (Leader Only)
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)', fontSize: '0.8rem', fontWeight: '600' }}>
+                            <AlertTriangle size={16} />
+                            <span>Only group leader ({status.leaderName}) can submit!</span>
+                          </div>
+                          <button className="btn btn-outline btn-sm" disabled style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed' }}>
+                            🔒 Submission Locked (Leader Only)
+                          </button>
+                        </div>
                       ) : (
                         <button 
-                          className="btn btn-outline btn-sm" 
+                          className="btn btn-primary btn-sm" 
+                          style={{ width: '100%' }}
                           onClick={() => handleOpenSubmit(assign)}
                         >
-                          Resubmit Work
+                          Submit Assignment
+                          <ArrowRight size={14} />
                         </button>
                       )
-                    ) : (
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        disabled
-                        style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                      >
-                        🔒 Resubmission Locked (Graded)
-                      </button>
                     )}
-                  </div>
-                ) : (
-                  isPastDue(assign.dueDate || assign.due_date) ? (
-                    <button 
-                      className="btn btn-outline btn-sm" 
-                      disabled
-                      style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    >
-                      ❌ Closed (Due Date Passed)
-                    </button>
-                  ) : status.isGroupSubmitLocked ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)', fontSize: '0.8rem', fontWeight: '600' }}>
-                        <AlertTriangle size={16} />
-                        <span>Only group leader ({status.leaderName}) can submit!</span>
-                      </div>
-                      <button className="btn btn-outline btn-sm" disabled style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed' }}>
-                        🔒 Submission Locked (Leader Only)
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      className="btn btn-primary btn-sm" 
-                      style={{ width: '100%' }}
-                      onClick={() => handleOpenSubmit(assign)}
-                    >
-                      Submit Assignment
-                      <ArrowRight size={14} />
-                    </button>
-                  )
+                  </>
                 )}
               </div>
             </div>

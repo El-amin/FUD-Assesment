@@ -539,8 +539,8 @@ export default function AssignmentManager({
   submissions, 
   users, 
   onAddAssignment, 
-  onUpdateAssignment,
-  onGradeSubmission 
+  onGradeSubmission,
+  enrollments = []
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAssignmentForReview, setSelectedAssignmentForReview] = useState(null);
@@ -869,19 +869,31 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
   const handleSaveGradeInline = (e) => {
     e.preventDefault();
 
+    const maxScoreLimit = selectedAssignmentForReview?.maxScore || selectedAssignmentForReview?.max_score || 100;
     const scoreNum = parseInt(gradeScore);
-    if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > activeSubmission.maxScore) {
-      alert(`Please enter a valid grade between 0 and ${activeSubmission.maxScore}.`);
+    if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > maxScoreLimit) {
+      alert(`Please enter a valid grade between 0 and ${maxScoreLimit}.`);
       return;
     }
 
-    onGradeSubmission(activeSubmission.id, scoreNum, gradeFeedback);
+    const isVirtual = activeSubmission.id?.startsWith('sub_paper_virtual_');
+    const realSubId = isVirtual ? `sub_paper_${selectedAssignmentForReview.id}_${activeSubmission.studentId}` : activeSubmission.id;
+
+    onGradeSubmission(
+      activeSubmission.id, 
+      scoreNum, 
+      gradeFeedback, 
+      activeSubmission.studentId, 
+      selectedAssignmentForReview.id
+    );
     
     // Update local active state so UI renders graded status immediately
     setActiveSubmission({
       ...activeSubmission,
+      id: realSubId,
       score: scoreNum,
-      feedback: gradeFeedback
+      feedback: gradeFeedback,
+      isVirtual: false
     });
 
     alert("Grade successfully applied!");
@@ -933,35 +945,67 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
       {/* Grid of Assignments */}
       <div className="grid-container">
         {assignments.map(assign => {
-          const course = courses.find(c => c.id === assign.courseId);
+          const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
+          const isPaperTest = assign.id?.startsWith('assign_paper_') || (assign.description && assign.description.includes('[Paper-based Test]'));
+          
+          const courseEnrolledStudents = users.filter(u => {
+            if (u.role !== 'student') return false;
+            return enrollments.some(e => 
+              e.studentId === u.id && 
+              (e.courseId === assign.courseId || e.course_id === assign.courseId)
+            );
+          });
+          const totalEnrolled = courseEnrolledStudents.length;
+
           const assignSubmissions = getSubmissionsForAssignment(assign.id);
-          const gradedCount = assignSubmissions.filter(sub => sub.score !== undefined && sub.score !== null).length;
-          const pendingCount = assignSubmissions.length - gradedCount;
+          const gradedCount = isPaperTest 
+            ? submissions.filter(sub => sub.taskId === assign.id && sub.score !== undefined && sub.score !== null).length
+            : assignSubmissions.filter(sub => sub.score !== undefined && sub.score !== null).length;
+
+          const pendingCount = isPaperTest 
+            ? Math.max(0, totalEnrolled - gradedCount)
+            : assignSubmissions.length - gradedCount;
 
           return (
             <div key={assign.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <span className="badge badge-primary">{course ? course.code : 'General'}</span>
-                  <span className={`badge ${assign.isGroup ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {assign.isGroup ? <Users size={12} /> : <FileText size={12} />}
-                    {assign.isGroup ? 'Group Work' : 'Individual'}
-                  </span>
+                  {isPaperTest ? (
+                    <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(100, 116, 139, 0.1)', color: 'var(--text-muted)' }}>
+                      <Award size={12} />
+                      Paper-Based Test
+                    </span>
+                  ) : (
+                    <span className={`badge ${assign.isGroup ? 'badge-warning' : 'badge-info'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {assign.isGroup ? <Users size={12} /> : <FileText size={12} />}
+                      {assign.isGroup ? 'Group Work' : 'Individual'}
+                    </span>
+                  )}
                 </div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px' }}>{assign.title}</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {assign.description || 'No description provided.'}
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span>Due Date: <strong>{assign.dueDate}</strong></span>
-                  <span>Maximum Points: <strong>{assign.maxScore}</strong></span>
+                  <span>Due Date: <strong>{assign.dueDate || assign.due_date}</strong></span>
+                  <span>Maximum Points: <strong>{assign.maxScore || assign.max_score}</strong></span>
                 </div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  <span>Pending: <strong style={{ color: pendingCount > 0 ? 'var(--color-warning)' : 'inherit' }}>{pendingCount}</strong></span>
-                  <span>Graded: <strong>{gradedCount}</strong></span>
+                  {isPaperTest ? (
+                    <>
+                      <span>Unmarked Students: <strong style={{ color: pendingCount > 0 ? 'var(--color-warning)' : 'inherit' }}>{pendingCount}</strong></span>
+                      <span>Graded: <strong>{gradedCount} / {totalEnrolled}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Pending: <strong style={{ color: pendingCount > 0 ? 'var(--color-warning)' : 'inherit' }}>{pendingCount}</strong></span>
+                      <span>Graded: <strong>{gradedCount}</strong></span>
+                    </>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <button 
@@ -969,7 +1013,7 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                     style={{ flexGrow: 1 }}
                     onClick={() => handleOpenReviewPanel(assign)}
                   >
-                    Grade & Preview ({assignSubmissions.length})
+                    {isPaperTest ? `Record Grades` : `Grade & Preview (${assignSubmissions.length})`}
                   </button>
                   <button 
                     className="btn btn-outline btn-sm"
@@ -1004,8 +1048,39 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
 
       {/* Modern Split-Pane Review & Grading Modal Workspace */}
       {selectedAssignmentForReview && (() => {
-        const assignSubmissions = getSubmissionsForAssignment(selectedAssignmentForReview.id);
-        const course = courses.find(c => c.id === selectedAssignmentForReview.courseId);
+        const isPaperTest = selectedAssignmentForReview.id?.startsWith('assign_paper_') || (selectedAssignmentForReview.description && selectedAssignmentForReview.description.includes('[Paper-based Test]'));
+        
+        let assignSubmissions = [];
+        if (isPaperTest) {
+          const courseEnrolledStudents = users.filter(u => {
+            if (u.role !== 'student') return false;
+            return enrollments.some(e => 
+              e.studentId === u.id && 
+              (e.courseId === selectedAssignmentForReview.courseId || e.course_id === selectedAssignmentForReview.courseId)
+            );
+          });
+          
+          assignSubmissions = courseEnrolledStudents.map(student => {
+            const existingSub = submissions.find(s => s.taskId === selectedAssignmentForReview.id && s.studentId === student.id && s.type === 'assignment');
+            return existingSub || {
+              id: `sub_paper_virtual_${selectedAssignmentForReview.id}_${student.id}`,
+              taskId: selectedAssignmentForReview.id,
+              studentId: student.id,
+              type: 'assignment',
+              isGroupSubmission: false,
+              score: null,
+              feedback: '',
+              submittedAt: 'Offline Grade Record',
+              attachmentName: 'Paper Assessment',
+              submissionText: 'Grades entered by lecturer.',
+              isVirtual: true
+            };
+          });
+        } else {
+          assignSubmissions = getSubmissionsForAssignment(selectedAssignmentForReview.id);
+        }
+
+        const course = courses.find(c => c.id === selectedAssignmentForReview.courseId || c.id === selectedAssignmentForReview.course_id);
         
         return (
           <div className="modal-overlay" onClick={() => setSelectedAssignmentForReview(null)}>
@@ -1163,59 +1238,73 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         
-                        {/* Preview Top Header info bar */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                          <div>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>
-                              INSPECTING FILE SUBMISSION WITHOUT DOWNLOADS
-                            </span>
-                            <h4 style={{ fontSize: '1.1rem', fontWeight: '700' }}>
-                              {activeSubmission.attachmentName}
-                            </h4>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                              Matriculate: {studentObj?.email} • Group Name: {activeSubmission.groupName || 'N/A'}
+                        {isPaperTest ? (
+                          <div style={{ padding: '16px', backgroundColor: 'rgba(10, 92, 54, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                              <Award size={16} />
+                              Offline Paper-Based Test Grade Entry
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                              Enter marks for student: <strong>{studentObj?.name}</strong> ({studentObj?.email}).
                             </p>
                           </div>
-                          
-                          <a 
-                            href={`#`} 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              alert(`Simulating secure download for: ${activeSubmission.attachmentName}`);
-                            }}
-                            className="btn btn-outline btn-sm"
-                          >
-                            Download Copy
-                          </a>
-                        </div>
+                        ) : (
+                          <>
+                            {/* Preview Top Header info bar */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                              <div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>
+                                  INSPECTING FILE SUBMISSION WITHOUT DOWNLOADS
+                                </span>
+                                <h4 style={{ fontSize: '1.1rem', fontWeight: '700' }}>
+                                  {activeSubmission.attachmentName}
+                                </h4>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                  Matriculate: {studentObj?.email} • Group Name: {activeSubmission.groupName || 'N/A'}
+                                </p>
+                              </div>
+                              
+                              <a 
+                                href={`#`} 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  alert(`Simulating secure download for: ${activeSubmission.attachmentName}`);
+                                }}
+                                className="btn btn-outline btn-sm"
+                              >
+                                Download Copy
+                              </a>
+                            </div>
 
-                        {/* Submission Remarks */}
-                        {activeSubmission.submissionText && (
-                          <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-app)', borderLeft: '4px solid var(--primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
-                            <strong>Student Submission Notes:</strong>
-                            <p style={{ marginTop: '4px', fontStyle: 'italic', color: 'var(--text-muted)' }}>
-                              "{activeSubmission.submissionText}"
-                            </p>
-                          </div>
+                            {/* Submission Remarks */}
+                            {activeSubmission.submissionText && (
+                              <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-app)', borderLeft: '4px solid var(--primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
+                                <strong>Student Submission Notes:</strong>
+                                <p style={{ marginTop: '4px', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                                  "{activeSubmission.submissionText}"
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Interactive Preview Canvas */}
+                            <DocPreview 
+                              fileName={activeSubmission.attachmentName} 
+                              submission={activeSubmission}
+                              studentName={studentObj?.name || 'Unknown Student'}
+                            />
+
+                            {/* Inline Keyframe Styles for AI Spinner */}
+                            <style>{`
+                              @keyframes ai-spin {
+                                0% { transform: rotate(0deg); }
+                                100% { transform: rotate(360deg); }
+                              }
+                              .ai-spinner-icon {
+                                animation: ai-spin 1s linear infinite;
+                              }
+                            `}</style>
+                          </>
                         )}
-
-                        {/* Interactive Preview Canvas */}
-                        <DocPreview 
-                          fileName={activeSubmission.attachmentName} 
-                          submission={activeSubmission}
-                          studentName={studentObj?.name || 'Unknown Student'}
-                        />
-
-                        {/* Inline Keyframe Styles for AI Spinner */}
-                        <style>{`
-                          @keyframes ai-spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                          }
-                          .ai-spinner-icon {
-                            animation: ai-spin 1s linear infinite;
-                          }
-                        `}</style>
 
                         {/* Grading Form Panel */}
                         <div className="card" style={{ border: '1px solid var(--primary)', borderLeft: '4px solid var(--primary)' }}>
@@ -1226,47 +1315,49 @@ Do not include any extra text, explanations, or markdown blocks outside the JSON
                             </div>
                             
                             {/* Grading Mode Toggle */}
-                            <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setGradingMode('manual');
-                                  setAiError('');
-                                }}
-                                style={{
-                                  padding: '5px 12px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'bold',
-                                  backgroundColor: gradingMode === 'manual' ? 'var(--primary)' : 'transparent',
-                                  color: gradingMode === 'manual' ? 'white' : 'var(--text-title)',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                Manual
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setGradingMode('ai')}
-                                style={{
-                                  padding: '5px 12px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'bold',
-                                  backgroundColor: gradingMode === 'ai' ? 'var(--primary)' : 'transparent',
-                                  color: gradingMode === 'ai' ? 'white' : 'var(--text-title)',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <Sparkles size={12} />
-                                AI Assistant
-                              </button>
-                            </div>
+                            {!isPaperTest && (
+                              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGradingMode('manual');
+                                    setAiError('');
+                                  }}
+                                  style={{
+                                    padding: '5px 12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'bold',
+                                    backgroundColor: gradingMode === 'manual' ? 'var(--primary)' : 'transparent',
+                                    color: gradingMode === 'manual' ? 'white' : 'var(--text-title)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  Manual
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setGradingMode('ai')}
+                                  style={{
+                                    padding: '5px 12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'bold',
+                                    backgroundColor: gradingMode === 'ai' ? 'var(--primary)' : 'transparent',
+                                    color: gradingMode === 'ai' ? 'white' : 'var(--text-title)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Sparkles size={12} />
+                                  AI Assistant
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {/* AI Assistant Setup Form */}

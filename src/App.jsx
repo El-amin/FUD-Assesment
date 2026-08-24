@@ -742,27 +742,64 @@ Possible Solutions:
   };
 
   // 5. Grade Submission (Lecturer)
-  const handleGradeSubmission = async (subId, score, feedback) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase
-        .from('submissions')
-        .update({ score, feedback })
-        .eq('id', subId);
+  const handleGradeSubmission = async (subId, score, feedback, studentId, taskId) => {
+    const isVirtual = subId.startsWith('sub_paper_virtual_');
+    const realSubId = isVirtual ? `sub_paper_${taskId}_${studentId}` : subId;
 
-      if (error) {
-        alert("Supabase Grading Error: " + error.message);
-        return;
+    if (isSupabaseConfigured) {
+      if (isVirtual) {
+        const { error } = await supabase.from('submissions').insert([{
+          id: realSubId,
+          task_id: taskId,
+          student_id: studentId,
+          type: 'assignment',
+          is_group_submission: false,
+          score,
+          feedback: feedback || 'Paper-based test score.',
+          is_released: true,
+          submitted_at: new Date().toISOString()
+        }]);
+        if (error) {
+          alert("Supabase Grading Insert Error: " + error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase
+          .from('submissions')
+          .update({ score, feedback })
+          .eq('id', subId);
+
+        if (error) {
+          alert("Supabase Grading Error: " + error.message);
+          return;
+        }
       }
     }
 
-    setSubmissions(submissions.map(sub => {
-      if (sub.id === subId) {
-        return { ...sub, score, feedback };
-      }
-      return sub;
-    }));
-    const subToGrade = submissions.find(s => s.id === subId);
-    triggerToast(`Grade recorded for ${subToGrade?.isGroupSubmission ? subToGrade.groupName : 'student'}!`);
+    if (isVirtual) {
+      const newSub = {
+        id: realSubId,
+        taskId,
+        studentId,
+        type: 'assignment',
+        isGroupSubmission: false,
+        score,
+        feedback: feedback || 'Paper-based test score.',
+        isReleased: true,
+        submittedAt: new Date().toISOString()
+      };
+      setSubmissions([...submissions, newSub]);
+      triggerToast(`Grade recorded for student!`);
+    } else {
+      setSubmissions(submissions.map(sub => {
+        if (sub.id === subId) {
+          return { ...sub, score, feedback };
+        }
+        return sub;
+      }));
+      const subToGrade = submissions.find(s => s.id === subId);
+      triggerToast(`Grade recorded for ${subToGrade?.isGroupSubmission ? subToGrade.groupName : 'student'}!`);
+    }
   };
 
   const handleAddPaperTestResults = async (newTest, results) => {
@@ -1963,6 +2000,7 @@ Possible Solutions:
                 onUpdateAssignment={handleUpdateAssignment}
                 onGradeSubmission={handleGradeSubmission}
                 activeCourseId={selectedCourseId}
+                enrollments={enrollments}
               />
             ) : (
               <AssignmentSubmitter 

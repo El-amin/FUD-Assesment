@@ -36,7 +36,7 @@ export default function Dashboard({
   // Filter courses for Lecturers: only show courses they offer
   const displayCourses = isLecturer 
     ? courses.filter(c => c.lecturerId === user.id || c.lecturer_id === user.id)
-    : courses;
+    : courses.filter(c => enrolledCourseIds.includes(c.id));
 
   // Calculate statistics
   const lecturerStats = () => {

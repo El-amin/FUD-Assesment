@@ -1,5 +1,119 @@
 import React, { useState, useEffect } from 'react';
 import { Award, BookOpen, FileText, CheckCircle, TrendingUp, Download } from 'lucide-react';
+function EditableGradeCell({ studentId, task, sub, onGradeSubmission }) {
+  const maxScore = task.maxScore || task.max_score || 100;
+  const initialValue = sub && sub.score !== undefined && sub.score !== null ? sub.score.toString() : '';
+  const [value, setValue] = useState(initialValue);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setValue(sub && sub.score !== undefined && sub.score !== null ? sub.score.toString() : '');
+  }, [sub]);
+
+  const handleSave = async () => {
+    if (value === '') {
+      setIsEditing(false);
+      setValue(initialValue);
+      return;
+    }
+
+    const newScore = parseInt(value);
+    if (isNaN(newScore) || newScore < 0 || newScore > maxScore) {
+      alert(`Invalid score. Must be between 0 and ${maxScore}.`);
+      setValue(initialValue);
+      setIsEditing(false);
+      return;
+    }
+
+    const currentScore = sub && sub.score !== undefined && sub.score !== null ? sub.score : -1;
+    if (newScore === currentScore) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const subId = sub ? sub.id : `sub_paper_virtual_${task.id}_${studentId}`;
+      await onGradeSubmission(subId, newScore, sub?.feedback || '', studentId, task.id);
+      setIsEditing(false);
+    } catch (err) {
+      alert('Error updating score: ' + err.message);
+      setValue(initialValue);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setValue(initialValue);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <td style={{ textAlign: 'center', padding: '4px' }}>
+        <input 
+          type="number"
+          min="0"
+          max={maxScore}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          style={{ 
+            width: '65px', 
+            height: '28px', 
+            textAlign: 'center', 
+            fontSize: '0.8rem', 
+            margin: 0, 
+            padding: '2px',
+            border: '1px solid var(--primary)',
+            borderRadius: '4px',
+            outline: 'none'
+          }}
+          disabled={isSaving}
+        />
+      </td>
+    );
+  }
+
+  const displayScore = sub && sub.score !== undefined && sub.score !== null ? sub.score : '-';
+  const hasGrade = sub && sub.score !== undefined && sub.score !== null;
+
+  return (
+    <td 
+      onClick={() => setIsEditing(true)} 
+      style={{ 
+        textAlign: 'center', 
+        cursor: 'pointer', 
+        transition: 'background-color 0.2s',
+        position: 'relative'
+      }}
+      className="editable-grade-cell"
+      title="Click to edit score"
+    >
+      <div style={{ display: 'inline-block', minWidth: '40px', padding: '6px' }}>
+        {isSaving ? (
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>saving...</span>
+        ) : hasGrade ? (
+          <>
+            <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{displayScore}</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}> / {maxScore}</span>
+          </>
+        ) : (
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
+        )}
+      </div>
+    </td>
+  );
+}
+
 
 export default function Gradebook({ 
   currentRole, 
@@ -11,9 +125,11 @@ export default function Gradebook({
   initialCourseId,
   enrollments = [],
   groups = [],
-  onAddPaperTestResults
+  onAddPaperTestResults,
+  onGradeSubmission
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
+  const [gradebookSearch, setGradebookSearch] = useState('');
   const user = users.find(u => u.id === currentRole) || users[0];
   const isLecturer = user.role === 'lecturer';
 
@@ -395,7 +511,11 @@ export default function Gradebook({
         gradedTasksCount
       };
     });
-
+    // Filter the studentGradesMap based on search query
+    const filteredStudentGradesMap = studentGradesMap.filter(row => {
+      const q = gradebookSearch.toLowerCase().trim();
+      return row.name.toLowerCase().includes(q) || row.regNo.toLowerCase().includes(q);
+    });
     // CSV Roster Export Trigger (Exporting actual scores)
     const handleExportCSV = () => {
       const course = courses.find(c => c.id === selectedCourseId);
@@ -499,6 +619,26 @@ export default function Gradebook({
             Roster Sheet: {courses.find(c => c.id === selectedCourseId)?.name}
           </h3>
 
+          {/* Search bar inside Gradebook Roster */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px', padding: '0 4px' }}>
+            <div style={{ position: 'relative', width: '320px' }}>
+              <input 
+                type="text" 
+                placeholder="Search student or matric number..." 
+                value={gradebookSearch}
+                onChange={e => setGradebookSearch(e.target.value)}
+                className="form-input"
+                style={{ height: '36px', fontSize: '0.85rem', paddingLeft: '32px', margin: 0 }}
+              />
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
+                🔍
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Total Students: <strong>{students.length}</strong> | Showing: <strong>{filteredStudentGradesMap.length}</strong>
+            </div>
+          </div>
+
           <div className="grade-table-container">
             <table className="grade-table">
               <thead>
@@ -517,46 +657,52 @@ export default function Gradebook({
                 </tr>
               </thead>
               <tbody>
-                {studentGradesMap.map(row => (
-                  <tr key={row.id}>
-                    <td style={{ fontWeight: '600' }}>{row.name}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.regNo}</td>
-                    {totalTasks.map(task => {
-                      const grade = row.tasks[task.id];
-                      if (!grade) return <td key={task.id} style={{ textAlign: 'center' }}>-</td>;
-                      
-                      if (grade.graded) {
+                {filteredStudentGradesMap.map(row => {
+                  const studentId = row.id;
+                  const courseGroup = groups.find(g => g.courseId === selectedCourseId && g.memberIds.includes(studentId));
+                  const studentGroupId = courseGroup ? courseGroup.id : null;
+
+                  return (
+                    <tr key={row.id}>
+                      <td style={{ fontWeight: '600' }}>{row.name}</td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.regNo}</td>
+                      {totalTasks.map(task => {
+                        let sub;
+                        if (task.id.startsWith('quiz_')) {
+                          sub = submissions.find(s => s.taskId === task.id && s.studentId === studentId && s.type === 'quiz');
+                        } else {
+                          const isGroupAssign = assignments.find(a => a.id === task.id)?.isGroup;
+                          if (isGroupAssign) {
+                            const matches = submissions.filter(s => s.taskId === task.id && s.isGroupSubmission && s.groupId === studentGroupId);
+                            sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
+                          } else {
+                            const matches = submissions.filter(s => s.taskId === task.id && s.studentId === studentId && s.type === 'assignment');
+                            sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
+                          }
+                        }
+
                         return (
-                          <td key={task.id} style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                            <span style={{ color: 'var(--primary)' }}>{grade.score}</span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}> / {grade.maxScore}</span>
-                          </td>
+                          <EditableGradeCell 
+                            key={task.id}
+                            studentId={studentId}
+                            task={task}
+                            sub={sub}
+                            onGradeSubmission={onGradeSubmission}
+                          />
                         );
-                      } else if (grade.status === 'Submitted') {
-                        return (
-                          <td key={task.id} style={{ textAlign: 'center' }}>
-                            <span className="badge badge-warning" style={{ fontSize: '0.6rem', padding: '2px 4px' }}>Submit</span>
-                          </td>
-                        );
-                      } else {
-                        return (
-                          <td key={task.id} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                            -
-                          </td>
-                        );
-                      }
-                    })}
-                    <td style={{ textAlign: 'center', fontWeight: '800', backgroundColor: 'rgba(10, 92, 54, 0.02)' }}>
-                      {row.gradedTasksCount > 0 ? (
-                        <span style={{ color: 'var(--primary)', fontSize: '1rem', fontWeight: '800' }}>
-                          {row.totalObtained}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      })}
+                      <td style={{ textAlign: 'center', fontWeight: '800', backgroundColor: 'rgba(10, 92, 54, 0.02)' }}>
+                        {row.gradedTasksCount > 0 ? (
+                          <span style={{ color: 'var(--primary)', fontSize: '1rem', fontWeight: '800' }}>
+                            {row.totalObtained}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {students.length === 0 && (
                   <tr>

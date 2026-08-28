@@ -759,6 +759,7 @@ Possible Solutions:
   const handleGradeSubmission = async (subId, score, feedback, studentId, taskId) => {
     const isVirtual = subId.startsWith('sub_paper_virtual_');
     const realSubId = isVirtual ? generateShortPaperSubId(taskId, studentId) : subId;
+    const taskType = taskId.startsWith('quiz_') ? 'quiz' : 'assignment';
 
     if (isSupabaseConfigured) {
       if (isVirtual) {
@@ -766,10 +767,10 @@ Possible Solutions:
           id: realSubId,
           task_id: taskId,
           student_id: studentId,
-          type: 'assignment',
+          type: taskType,
           is_group_submission: false,
           score,
-          feedback: feedback || 'Paper-based test score.',
+          feedback: feedback || 'Grade recorded via Gradebook.',
           is_released: true,
           submitted_at: new Date().toISOString()
         }]);
@@ -780,7 +781,7 @@ Possible Solutions:
       } else {
         const { error } = await supabase
           .from('submissions')
-          .update({ score, feedback })
+          .update({ score, feedback: feedback || 'Grade updated via Gradebook.' })
           .eq('id', subId);
 
         if (error) {
@@ -795,10 +796,10 @@ Possible Solutions:
         id: realSubId,
         taskId,
         studentId,
-        type: 'assignment',
+        type: taskType,
         isGroupSubmission: false,
         score,
-        feedback: feedback || 'Paper-based test score.',
+        feedback: feedback || 'Grade recorded via Gradebook.',
         isReleased: true,
         submittedAt: new Date().toISOString()
       };
@@ -807,7 +808,7 @@ Possible Solutions:
     } else {
       setSubmissions(submissions.map(sub => {
         if (sub.id === subId) {
-          return { ...sub, score, feedback };
+          return { ...sub, score, feedback: feedback || sub.feedback };
         }
         return sub;
       }));
@@ -2041,6 +2042,7 @@ Possible Solutions:
               enrollments={enrollments}
               groups={groups}
               onAddPaperTestResults={handleAddPaperTestResults}
+              onGradeSubmission={handleGradeSubmission}
             />
           )}
 

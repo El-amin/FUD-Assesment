@@ -221,8 +221,6 @@ export default function Gradebook({
     const studentPresentSessions = attendanceRecords.filter(r => {
       const matchStudent = r.studentId === studentId || r.student_id === studentId;
       if (!matchStudent) return false;
-      const isPresent = r.status === 'present' || r.status === 'Present';
-      if (!isPresent) return false;
       return courseSessions.some(s => s.id === r.sessionId || s.id === r.session_id);
     });
     const attendancePercent = courseSessions.length > 0 

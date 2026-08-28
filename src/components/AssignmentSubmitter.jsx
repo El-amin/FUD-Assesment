@@ -28,13 +28,13 @@ export default function AssignmentSubmitter({
     return todayStr > dueDateStr;
   };
 
-  const student = users.find(u => u.id === currentStudentId) || users[0];
+  const student = (users || []).find(u => u.id === currentStudentId) || users?.[0] || {};
 
   // Retrieve submission details if already made
   const getSubmissionStatus = (assign) => {
     const isGroup = assign.isGroup || assign.is_group;
     const courseId = assign.courseId || assign.course_id;
-    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+    const courseGroup = (groups || []).find(g => g.courseId === courseId && g.memberIds.includes(student?.id));
     const targetGroupId = courseGroup ? courseGroup.id : null;
 
     // If it is a group assignment, check if anyone from the same group submitted
@@ -42,13 +42,13 @@ export default function AssignmentSubmitter({
       if (!targetGroupId) {
         return { submitted: false, noGroup: true };
       }
-      const groupSub = submissions.find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === targetGroupId);
-      const isLeader = courseGroup ? (courseGroup.leaderId === student.id) : false;
-      const leaderUser = courseGroup ? users.find(u => u.id === courseGroup.leaderId) : null;
+      const groupSub = (submissions || []).find(s => s.taskId === assign.id && (s.isGroupSubmission || s.is_group_submission) && s.groupId === targetGroupId);
+      const isLeader = courseGroup ? (courseGroup.leaderId === student?.id) : false;
+      const leaderUser = courseGroup ? (users || []).find(u => u.id === courseGroup.leaderId) : null;
       const leaderName = leaderUser ? leaderUser.name : 'Group Leader';
 
       if (groupSub) {
-        const submitter = users.find(u => u.id === groupSub.studentId || u.id === groupSub.student_id);
+        const submitter = (users || []).find(u => u.id === groupSub.studentId || u.id === groupSub.student_id);
         return { 
           submitted: true, 
           score: groupSub.score, 
@@ -106,7 +106,7 @@ export default function AssignmentSubmitter({
 
     try {
       const courseId = submittingAssignment.courseId || submittingAssignment.course_id;
-      const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+      const courseGroup = (groups || []).find(g => g.courseId === courseId && g.memberIds.includes(student?.id));
       const targetGroupId = courseGroup ? courseGroup.id : null;
       const targetGroupName = courseGroup ? courseGroup.name : 'No Group';
 
@@ -185,10 +185,10 @@ export default function AssignmentSubmitter({
                   
                   {isGroupAssign && (() => {
                     const courseId = assign.courseId || assign.course_id;
-                    const courseGroup = groups.find(g => g.courseId === courseId && g.memberIds.includes(student.id));
+                    const courseGroup = (groups || []).find(g => g.courseId === courseId && g.memberIds.includes(student?.id));
                     if (courseGroup) {
-                      const leader = users.find(u => u.id === courseGroup.leaderId);
-                      const members = users.filter(u => courseGroup.memberIds.includes(u.id) && u.id !== courseGroup.leaderId);
+                      const leader = (users || []).find(u => u.id === courseGroup.leaderId);
+                      const members = (users || []).filter(u => courseGroup.memberIds.includes(u.id) && u.id !== courseGroup.leaderId);
                       return (
                         <div style={{ 
                           marginTop: '10px', 

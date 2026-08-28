@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Calendar, Users, CheckCircle, Clock, Upload, ArrowRight, X, AlertTriangle, Eye } from 'lucide-react';
+import { FileText, Calendar, Users, CheckCircle, Clock, Upload, ArrowRight, X, AlertTriangle, Eye, Award } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 export default function AssignmentSubmitter({ 

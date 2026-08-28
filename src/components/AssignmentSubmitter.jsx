@@ -34,7 +34,7 @@ export default function AssignmentSubmitter({
   const getSubmissionStatus = (assign) => {
     const isGroup = assign.isGroup || assign.is_group;
     const courseId = assign.courseId || assign.course_id;
-    const courseGroup = (groups || []).find(g => g.courseId === courseId && g.memberIds.includes(student?.id));
+    const courseGroup = (groups || []).find(g => g.courseId === courseId && g.memberIds && g.memberIds.includes(student?.id));
     const targetGroupId = courseGroup ? courseGroup.id : null;
 
     // If it is a group assignment, check if anyone from the same group submitted
@@ -69,7 +69,7 @@ export default function AssignmentSubmitter({
     }
 
     // Individual assignment check (resilience for double submissions: look for graded one first)
-    const studentSubs = submissions.filter(s => s.taskId === assign.id && (s.studentId === currentStudentId || s.student_id === currentStudentId) && s.type === 'assignment');
+    const studentSubs = (submissions || []).filter(s => s.taskId === assign.id && (s.studentId === currentStudentId || s.student_id === currentStudentId) && s.type === 'assignment');
     if (studentSubs.length > 0) {
       const indSub = studentSubs.find(s => s.score !== undefined && s.score !== null) || studentSubs[studentSubs.length - 1];
       return { 
@@ -147,7 +147,7 @@ export default function AssignmentSubmitter({
       {/* Grid of Student Assignments */}
       <div className="grid-container" style={{ marginTop: '24px' }}>
         {assignments.map(assign => {
-          const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
+          const course = (courses || []).find(c => c.id === assign.courseId || c.id === assign.course_id);
           const status = getSubmissionStatus(assign);
           const isGraded = (status.submitted || assign.id?.startsWith('assign_paper_')) && status.score !== undefined && status.score !== null;
           const isGroupAssign = assign.isGroup || assign.is_group;
@@ -387,7 +387,7 @@ export default function AssignmentSubmitter({
           <div className="modal-content" onClick={e => e.stopPropagation()}>
              <div className="modal-header">
               <div>
-                <span className="badge badge-primary">{courses.find(c => c.id === submittingAssignment.courseId || c.id === submittingAssignment.course_id)?.code}</span>
+                <span className="badge badge-primary">{(courses || []).find(c => c.id === submittingAssignment.courseId || c.id === submittingAssignment.course_id)?.code}</span>
                 <h3 style={{ fontSize: '1.2rem', marginTop: '4px' }}>Submit: {submittingAssignment.title}</h3>
               </div>
               <button className="modal-close" onClick={() => setSubmittingAssignment(null)}>
@@ -490,7 +490,7 @@ export default function AssignmentSubmitter({
       {/* Viewing Assignment Details Modal */}
       {viewingAssignmentDetails && (() => {
         const assign = viewingAssignmentDetails;
-        const course = courses.find(c => c.id === assign.courseId || c.id === assign.course_id);
+        const course = (courses || []).find(c => c.id === assign.courseId || c.id === assign.course_id);
         const hasFile = assign.attachmentName || assign.attachment_name;
         
         return (

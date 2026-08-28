@@ -217,6 +217,7 @@ export default function Gradebook({
     // Compile all tasks (quizzes & assignments) associated with selected course
     const courseQuizzes = quizzes.filter(q => q.courseId === selectedCourseId);
     const courseAssignments = assignments.filter(a => a.courseId === selectedCourseId);
+    const totalTasks = [...courseQuizzes, ...courseAssignments];
 
     const gradesList = [];
 
@@ -333,54 +334,69 @@ export default function Gradebook({
         <div className="card">
           <h3 className="card-title">
             <BookOpen size={20} style={{ color: 'var(--primary)' }} />
-            Academic Assessment Breakdown
+            My Grade Roster Sheet
           </h3>
 
           <div className="grade-table-container">
             <table className="grade-table">
               <thead>
                 <tr>
-                  <th>Task Title</th>
-                  <th>Assessment Type</th>
-                  <th>Obtained Marks (Actual)</th>
-                  <th>Percentage Equivalent</th>
-                  <th>Status</th>
-                  <th>Feedback Comments</th>
+                  <th>Student Name</th>
+                  <th>Registration Number</th>
+                  {totalTasks.map(task => (
+                    <th key={task.id} style={{ fontSize: '0.75rem', textAlign: 'center' }}>
+                      <div style={{ fontWeight: '800' }}>{task.title}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                        ({task.id.startsWith('quiz_') ? 'Quiz' : `Assign / ${task.maxScore || task.max_score}`})
+                      </div>
+                    </th>
+                  ))}
+                  <th style={{ textAlign: 'center' }}>Total Score</th>
                 </tr>
               </thead>
               <tbody>
-                {gradesList.map(item => {
-                  const percentVal = typeof item.score === 'number' ? Math.round((item.score / item.maxScore) * 100) : null;
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ fontWeight: '700' }}>{item.title}</td>
-                      <td>
-                        <span className="badge badge-gray">{item.type}</span>
-                      </td>
-                      <td style={{ fontWeight: '700' }}>
-                        {typeof item.score === 'number' ? `${item.score} / ${item.maxScore}` : (item.score || '-')}
-                      </td>
-                      <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
-                        {percentVal !== null ? `${percentVal}%` : '-'}
-                      </td>
-                      <td>
-                        <span className={`badge ${
-                          item.status === 'Graded' ? 'badge-success' : 
-                          item.status.startsWith('Submitted') ? 'badge-warning' : 'badge-gray'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.8rem', fontStyle: 'italic', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.feedback}
-                      </td>
-                    </tr>
-                  );
-                })}
+                <tr>
+                  <td style={{ fontWeight: '600' }}>{user.name}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{user.email}</td>
+                  {totalTasks.map(task => {
+                    const gradeItem = gradesList.find(g => g.id === task.id);
+                    if (!gradeItem) return <td key={task.id} style={{ textAlign: 'center' }}>-</td>;
 
-                {gradesList.length === 0 && (
+                    if (gradeItem.status === 'Graded') {
+                      return (
+                        <td key={task.id} style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                          <span style={{ color: 'var(--primary)' }}>{gradeItem.score}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}> / {gradeItem.maxScore}</span>
+                        </td>
+                      );
+                    } else if (gradeItem.status.startsWith('Submitted')) {
+                      return (
+                        <td key={task.id} style={{ textAlign: 'center' }}>
+                          <span className="badge badge-warning" style={{ fontSize: '0.6rem', padding: '2px 4px' }}>Submitted</span>
+                        </td>
+                      );
+                    } else {
+                      return (
+                        <td key={task.id} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                          -
+                        </td>
+                      );
+                    }
+                  })}
+                  <td style={{ textAlign: 'center', fontWeight: '800', backgroundColor: 'rgba(10, 92, 54, 0.02)' }}>
+                    {gradedItems.length > 0 ? (
+                      <span style={{ color: 'var(--primary)', fontSize: '1rem', fontWeight: '800' }}>
+                        {totalObtained}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>-</span>
+                    )}
+                  </td>
+                </tr>
+
+                {totalTasks.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                    <td colSpan={3} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
                       No tasks found for this course.
                     </td>
                   </tr>

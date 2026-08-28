@@ -2043,6 +2043,8 @@ Possible Solutions:
               groups={groups}
               onAddPaperTestResults={handleAddPaperTestResults}
               onGradeSubmission={handleGradeSubmission}
+              attendanceSessions={attendanceSessions}
+              attendanceRecords={attendanceRecords}
             />
           )}
 

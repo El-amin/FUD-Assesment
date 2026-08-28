@@ -126,7 +126,9 @@ export default function Gradebook({
   enrollments = [],
   groups = [],
   onAddPaperTestResults,
-  onGradeSubmission
+  onGradeSubmission,
+  attendanceSessions = [],
+  attendanceRecords = []
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const [gradebookSearch, setGradebookSearch] = useState('');
@@ -213,6 +215,19 @@ export default function Gradebook({
     const studentId = user.id;
     const courseGroup = groups.find(g => g.courseId === selectedCourseId && g.memberIds.includes(studentId));
     const studentGroup = courseGroup ? courseGroup.id : null;
+
+    // Compute attendance percentage for this student in this course
+    const courseSessions = attendanceSessions.filter(s => s.courseId === selectedCourseId || s.course_id === selectedCourseId);
+    const studentPresentSessions = attendanceRecords.filter(r => {
+      const matchStudent = r.studentId === studentId || r.student_id === studentId;
+      if (!matchStudent) return false;
+      const isPresent = r.status === 'present' || r.status === 'Present';
+      if (!isPresent) return false;
+      return courseSessions.some(s => s.id === r.sessionId || s.id === r.session_id);
+    });
+    const attendancePercent = courseSessions.length > 0 
+      ? Math.round((studentPresentSessions.length / courseSessions.length) * 100)
+      : 100;
 
     // Compile all tasks (quizzes & assignments) associated with selected course
     const courseQuizzes = quizzes.filter(q => q.courseId === selectedCourseId);
@@ -323,8 +338,8 @@ export default function Gradebook({
           </div>
           <div className="card stat-card" style={{ padding: '16px' }}>
             <div className="stat-info">
-              <span className="stat-value">{gradeLetter}</span>
-              <span className="stat-label">Estimated Grade Letter</span>
+              <span className="stat-value">{attendancePercent}%</span>
+              <span className="stat-label">Course Attendance</span>
             </div>
             <div className="stat-icon-wrapper secondary"><Award size={20} /></div>
           </div>

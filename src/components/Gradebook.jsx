@@ -129,7 +129,7 @@ export default function Gradebook({
   onGradeSubmission,
   attendanceSessions = [],
   attendanceRecords = [],
-  onEnrollStudent
+  onAddVirtualStudent
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const [gradebookSearch, setGradebookSearch] = useState('');
@@ -143,8 +143,9 @@ export default function Gradebook({
   const [paperTestDueDate, setPaperTestDueDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [studentMarks, setStudentMarks] = useState({});
   const [studentFeedbacks, setStudentFeedbacks] = useState({});
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
-  const [enrollStudentId, setEnrollStudentId] = useState('');
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentRegNo, setNewStudentRegNo] = useState('');
 
   useEffect(() => {
     if (initialCourseId) {
@@ -603,11 +604,11 @@ export default function Gradebook({
             <button 
               className="btn btn-secondary" 
               style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'black' }}
-              onClick={() => setShowEnrollModal(true)}
-              title="Add a student who is not currently enrolled in this course to the grade roster"
+              onClick={() => setShowAddStudentModal(true)}
+              title="Add a student directly to the gradebook roster"
             >
               <UserPlus size={18} />
-              Enroll Student
+              Add Student Row
             </button>
             <button 
               className="btn btn-primary" 
@@ -846,16 +847,16 @@ export default function Gradebook({
           </div>
         )}
 
-        {showEnrollModal && (
-          <div className="modal-overlay" onClick={() => setShowEnrollModal(false)}>
+        {showAddStudentModal && (
+          <div className="modal-overlay" onClick={() => setShowAddStudentModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', padding: '24px' }}>
               <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                   <UserPlus size={22} style={{ color: 'var(--primary)' }} />
-                  Enroll Student in Course
+                  Add Student to Roster
                 </h3>
                 <button 
-                  onClick={() => setShowEnrollModal(false)}
+                  onClick={() => setShowAddStudentModal(false)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 'bold' }}
                 >
                   ✕
@@ -864,31 +865,40 @@ export default function Gradebook({
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.5' }}>
-                  Select a student from the portal registry to enroll them in this course. Once enrolled, they will instantly appear in the grade roster.
+                  Enter the student's name and registration number to add them directly as a new row in this course roster sheet.
                 </p>
                 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Search / Select Student</label>
-                  <select 
-                    className="form-select"
-                    value={enrollStudentId}
-                    onChange={e => setEnrollStudentId(e.target.value)}
+                  <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Student Full Name</label>
+                  <input 
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Farouq Olatunji"
+                    value={newStudentName}
+                    onChange={e => setNewStudentName(e.target.value)}
                     style={{ height: '38px', fontSize: '0.85rem' }}
-                  >
-                    <option value="">-- Choose Student --</option>
-                    {unenrolledStudents.map(student => (
-                      <option key={student.id} value={student.id}>
-                        {student.name} ({student.email})
-                      </option>
-                    ))}
-                  </select>
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Registration / Matric Number</label>
+                  <input 
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. FCP/CSC/25/1015"
+                    value={newStudentRegNo}
+                    onChange={e => setNewStudentRegNo(e.target.value)}
+                    style={{ height: '38px', fontSize: '0.85rem' }}
+                    required
+                  />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
                   <button 
                     type="button" 
                     className="btn btn-outline" 
-                    onClick={() => { setShowEnrollModal(false); setEnrollStudentId(''); }}
+                    onClick={() => { setShowAddStudentModal(false); setNewStudentName(''); setNewStudentRegNo(''); }}
                     style={{ padding: '8px 16px', margin: 0 }}
                   >
                     Cancel
@@ -897,17 +907,18 @@ export default function Gradebook({
                     type="button" 
                     className="btn btn-primary"
                     onClick={async () => {
-                      if (!enrollStudentId) {
-                        alert('Please select a student to enroll.');
+                      if (!newStudentName.trim() || !newStudentRegNo.trim()) {
+                        alert('Please fill in both fields.');
                         return;
                       }
-                      await onEnrollStudent(enrollStudentId, selectedCourseId);
-                      setShowEnrollModal(false);
-                      setEnrollStudentId('');
+                      await onAddVirtualStudent(newStudentName.trim(), newStudentRegNo.trim(), selectedCourseId);
+                      setShowAddStudentModal(false);
+                      setNewStudentName('');
+                      setNewStudentRegNo('');
                     }}
                     style={{ padding: '8px 24px', margin: 0 }}
                   >
-                    Enroll Student
+                    Add Student
                   </button>
                 </div>
               </div>

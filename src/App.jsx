@@ -1103,6 +1103,78 @@ Possible Solutions:
     triggerToast("Enrolled in course successfully!");
   };
 
+  const handleAddVirtualStudent = async (name, regNo, courseId) => {
+    let existingStudent = users.find(u => u.email?.toLowerCase().trim() === regNo.toLowerCase().trim());
+    let studentId;
+
+    if (existingStudent) {
+      studentId = existingStudent.id;
+    } else {
+      studentId = `student_${Date.now()}`;
+      const newStudent = {
+        id: studentId,
+        name: name,
+        email: regNo,
+        role: 'student',
+        avatar: name.split(' ').map(n=>n[0]).join('').toUpperCase() || 'ST',
+        password: 'password123',
+        isFirstLogin: false,
+        department: null,
+        level: null
+      };
+
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from('users').insert([{
+          id: studentId,
+          name: name,
+          email: regNo,
+          role: 'student',
+          avatar: newStudent.avatar,
+          password: 'password123',
+          is_first_login: false
+        }]);
+        if (error) {
+          alert("Error creating virtual student user in database: " + error.message);
+          return;
+        }
+      }
+      setUsers(prev => [...prev, newStudent]);
+    }
+
+    const isEnrolled = enrollments.some(e => 
+      (e.studentId === studentId || e.student_id === studentId) && 
+      (e.courseId === courseId || e.course_id === courseId)
+    );
+
+    if (!isEnrolled) {
+      const enrollId = `enroll_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const newEnrollment = {
+        id: enrollId,
+        student_id: studentId,
+        studentId: studentId,
+        course_id: courseId,
+        courseId: courseId,
+        enrolled_at: new Date().toISOString(),
+        enrolledAt: new Date().toISOString()
+      };
+
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from('enrollments').insert([{
+          id: enrollId,
+          student_id: studentId,
+          course_id: courseId
+        }]);
+        if (error) {
+          alert("Error enrolling student in course in database: " + error.message);
+          return;
+        }
+      }
+      setEnrollments(prev => [...prev, newEnrollment]);
+    }
+
+    triggerToast(`Student "${name}" added to roster!`);
+  };
+
   const handleChangePassword = async (userId, newPassword) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase
@@ -2045,7 +2117,7 @@ Possible Solutions:
               onGradeSubmission={handleGradeSubmission}
               attendanceSessions={attendanceSessions}
               attendanceRecords={attendanceRecords}
-              onEnrollStudent={handleEnrollStudent}
+              onAddVirtualStudent={handleAddVirtualStudent}
             />
           )}
 

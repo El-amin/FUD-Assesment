@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Award, BookOpen, FileText, CheckCircle, TrendingUp, Download } from 'lucide-react';
+import { Award, BookOpen, FileText, CheckCircle, TrendingUp, Download, X, UserPlus } from 'lucide-react';
 function EditableGradeCell({ studentId, task, sub, onGradeSubmission }) {
   const maxScore = task.maxScore || task.max_score || 100;
   const initialValue = sub && sub.score !== undefined && sub.score !== null ? sub.score.toString() : '';
@@ -128,7 +128,8 @@ export default function Gradebook({
   onAddPaperTestResults,
   onGradeSubmission,
   attendanceSessions = [],
-  attendanceRecords = []
+  attendanceRecords = [],
+  onEnrollStudent
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId || courses[0]?.id || '');
   const [gradebookSearch, setGradebookSearch] = useState('');
@@ -142,6 +143,8 @@ export default function Gradebook({
   const [paperTestDueDate, setPaperTestDueDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [studentMarks, setStudentMarks] = useState({});
   const [studentFeedbacks, setStudentFeedbacks] = useState({});
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [enrollStudentId, setEnrollStudentId] = useState('');
 
   useEffect(() => {
     if (initialCourseId) {
@@ -447,42 +450,10 @@ export default function Gradebook({
       );
     });
 
-    if (students.length === 0) {
-      const activeCourse = courses.find(c => c.id === selectedCourseId);
-      return (
-        <div>
-          {/* Header course selection */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>Gradebook Roster</h2>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Review aggregated academic scores across quizzes and assignments for all registered students.
-              </p>
-            </div>
-            <select 
-              className="form-select" 
-              value={selectedCourseId} 
-              onChange={e => setSelectedCourseId(e.target.value)}
-              style={{ width: '220px' }}
-            >
-              {courses.map(course => (
-                <option key={course.id} value={course.id}>{course.code} - {course.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-            <BookOpen size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px', opacity: 0.7 }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-title)', marginBottom: '8px' }}>
-              No Enrolled Students: {activeCourse ? activeCourse.code : ''}
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto' }}>
-              There are currently no students enrolled in this course. At least one student must enroll in this course before you can view the gradebook roster.
-            </p>
-          </div>
-        </div>
-      );
-    }
+    const enrolledStudentIds = students.map(u => u.id);
+    const unenrolledStudents = users.filter(u => 
+      u.role === 'student' && !enrolledStudentIds.includes(u.id)
+    );
 
     // List all quizzes and assignments in selected course
     const courseQuizzes = quizzes.filter(q => q.courseId === selectedCourseId);
@@ -628,6 +599,15 @@ export default function Gradebook({
             >
               <Download size={18} />
               Export Roster CSV
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'black' }}
+              onClick={() => setShowEnrollModal(true)}
+              title="Add a student who is not currently enrolled in this course to the grade roster"
+            >
+              <UserPlus size={18} />
+              Enroll Student
             </button>
             <button 
               className="btn btn-primary" 
@@ -862,6 +842,75 @@ export default function Gradebook({
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showEnrollModal && (
+          <div className="modal-overlay" onClick={() => setShowEnrollModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', padding: '24px' }}>
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <UserPlus size={22} style={{ color: 'var(--primary)' }} />
+                  Enroll Student in Course
+                </h3>
+                <button 
+                  onClick={() => setShowEnrollModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 'bold' }}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.5' }}>
+                  Select a student from the portal registry to enroll them in this course. Once enrolled, they will instantly appear in the grade roster.
+                </p>
+                
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Search / Select Student</label>
+                  <select 
+                    className="form-select"
+                    value={enrollStudentId}
+                    onChange={e => setEnrollStudentId(e.target.value)}
+                    style={{ height: '38px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">-- Choose Student --</option>
+                    {unenrolledStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.name} ({student.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline" 
+                    onClick={() => { setShowEnrollModal(false); setEnrollStudentId(''); }}
+                    style={{ padding: '8px 16px', margin: 0 }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      if (!enrollStudentId) {
+                        alert('Please select a student to enroll.');
+                        return;
+                      }
+                      await onEnrollStudent(enrollStudentId, selectedCourseId);
+                      setShowEnrollModal(false);
+                      setEnrollStudentId('');
+                    }}
+                    style={{ padding: '8px 24px', margin: 0 }}
+                  >
+                    Enroll Student
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

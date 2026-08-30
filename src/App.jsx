@@ -2045,6 +2045,7 @@ Possible Solutions:
               onGradeSubmission={handleGradeSubmission}
               attendanceSessions={attendanceSessions}
               attendanceRecords={attendanceRecords}
+              onEnrollStudent={handleEnrollStudent}
             />
           )}
 

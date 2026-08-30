@@ -178,7 +178,7 @@ export default function Gradebook({
         results.push({
           studentId: student.id,
           score: scoreNum,
-          feedback: studentFeedbacks[student.id] || 'Paper-based test score.'
+          feedback: studentFeedbacks[student.id] || 'Grade recorded via Gradebook.'
         });
       }
     });

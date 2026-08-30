@@ -844,7 +844,7 @@ Possible Solutions:
           type: 'assignment',
           is_group_submission: false,
           score: res.score,
-          feedback: res.feedback || 'Paper-based test score.',
+          feedback: res.feedback || 'Grade recorded via Gradebook.',
           is_released: true,
           submitted_at: new Date().toISOString()
         };
@@ -871,7 +871,7 @@ Possible Solutions:
         type: 'assignment',
         isGroupSubmission: false,
         score: res.score,
-        feedback: res.feedback || 'Paper-based test score.',
+        feedback: res.feedback || 'Grade recorded via Gradebook.',
         isReleased: true,
         submittedAt: new Date().toISOString()
       };

@@ -146,12 +146,17 @@ export default function Gradebook({
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentRegNo, setNewStudentRegNo] = useState('');
+  const [regNoSort, setRegNoSort] = useState(null); // 'asc', 'desc', or null
 
   useEffect(() => {
     if (initialCourseId) {
       setSelectedCourseId(initialCourseId);
     }
   }, [initialCourseId]);
+
+  useEffect(() => {
+    setRegNoSort(null);
+  }, [selectedCourseId]);
 
   const handleSavePaperTest = (e, studentsList) => {
     e.preventDefault();
@@ -517,6 +522,12 @@ export default function Gradebook({
       const q = gradebookSearch.toLowerCase().trim();
       return row.name.toLowerCase().includes(q) || row.regNo.toLowerCase().includes(q);
     });
+
+    if (regNoSort === 'asc') {
+      filteredStudentGradesMap.sort((a, b) => (a.regNo || '').localeCompare(b.regNo || '', undefined, { numeric: true, sensitivity: 'base' }));
+    } else if (regNoSort === 'desc') {
+      filteredStudentGradesMap.sort((a, b) => (b.regNo || '').localeCompare(a.regNo || '', undefined, { numeric: true, sensitivity: 'base' }));
+    }
     // CSV Roster Export Trigger (Exporting actual scores)
     const handleExportCSV = () => {
       const course = courses.find(c => c.id === selectedCourseId);
@@ -654,7 +665,29 @@ export default function Gradebook({
               <thead>
                 <tr>
                   <th>Student Name</th>
-                  <th>Registration Number</th>
+                  <th 
+                    onClick={() => {
+                      if (regNoSort === null) setRegNoSort('asc');
+                      else if (regNoSort === 'asc') setRegNoSort('desc');
+                      else setRegNoSort(null);
+                    }}
+                    style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                    title="Click to sort by Registration Number (Toggle Ascending / Descending)"
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Registration Number</span>
+                      <span style={{ 
+                        fontSize: '0.85rem', 
+                        color: regNoSort ? 'var(--primary)' : 'var(--text-muted)',
+                        backgroundColor: regNoSort ? 'rgba(10, 92, 54, 0.08)' : 'transparent',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        transition: 'all 0.2s'
+                      }}>
+                        {regNoSort === 'asc' ? '▲' : regNoSort === 'desc' ? '▼' : '⇅'}
+                      </span>
+                    </div>
+                  </th>
                   {totalTasks.map(task => (
                     <th key={task.id} style={{ fontSize: '0.75rem', textAlign: 'center' }}>
                       <div style={{ fontWeight: '800' }}>{task.title}</div>

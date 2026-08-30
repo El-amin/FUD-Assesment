@@ -542,7 +542,7 @@ export default function Gradebook({
       ];
 
       // Rows
-      const csvRows = studentGradesMap.map(row => {
+      const csvRows = filteredStudentGradesMap.map(row => {
         const studentObj = users.find(u => u.id === row.id);
         const taskScores = totalTasks.map(task => {
           const grade = row.tasks[task.id];
@@ -552,14 +552,14 @@ export default function Gradebook({
           if (grade && grade.status === 'Submitted') {
             return 'Submitted (Pending)';
           }
-          return 'N/A';
+          return ''; // Empty value for unrecorded score
         });
 
         return [
           row.name,
           studentObj?.email || '',
           ...taskScores,
-          row.gradedTasksCount > 0 ? `${row.totalObtained}` : 'N/A'
+          row.gradedTasksCount > 0 ? `${row.totalObtained}` : '0' // Default to 0 for unrecorded total
         ];
       });
 

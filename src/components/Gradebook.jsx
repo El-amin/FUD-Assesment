@@ -714,12 +714,15 @@ export default function Gradebook({
                         if (task.id.startsWith('quiz_')) {
                           sub = submissions.find(s => s.taskId === task.id && s.studentId === studentId && s.type === 'quiz');
                         } else {
-                          const isGroupAssign = assignments.find(a => a.id === task.id)?.isGroup;
+                          const isGroupAssign = assignments.find(a => a.id === task.id)?.isGroup || assignments.find(a => a.id === task.id)?.is_group;
                           if (isGroupAssign) {
-                            const matches = submissions.filter(s => s.taskId === task.id && s.isGroupSubmission && s.groupId === studentGroupId);
+                            const matches = submissions.filter(s => s.taskId === task.id && (
+                              ((s.isGroupSubmission || s.is_group_submission) && studentGroupId && (s.groupId === studentGroupId || s.group_id === studentGroupId)) ||
+                              (s.studentId === studentId || s.student_id === studentId)
+                            ));
                             sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
                           } else {
-                            const matches = submissions.filter(s => s.taskId === task.id && s.studentId === studentId && s.type === 'assignment');
+                            const matches = submissions.filter(s => s.taskId === task.id && (s.studentId === studentId || s.student_id === studentId));
                             sub = matches.find(s => s.score !== undefined && s.score !== null) || matches[matches.length - 1];
                           }
                         }

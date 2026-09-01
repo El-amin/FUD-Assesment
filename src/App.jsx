@@ -757,64 +757,73 @@ Possible Solutions:
 
   // 5. Grade Submission (Lecturer)
   const handleGradeSubmission = async (subId, score, feedback, studentId, taskId) => {
-    const isVirtual = subId.startsWith('sub_paper_virtual_');
+    const isVirtual = subId ? subId.startsWith('sub_paper_virtual_') : true;
     const realSubId = isVirtual ? generateShortPaperSubId(taskId, studentId) : subId;
     const taskType = taskId.startsWith('quiz_') ? 'quiz' : 'assignment';
 
-    if (isSupabaseConfigured) {
-      if (isVirtual) {
-        const { error } = await supabase.from('submissions').insert([{
-          id: realSubId,
-          task_id: taskId,
-          student_id: studentId,
-          type: taskType,
-          is_group_submission: false,
-          score,
-          feedback: feedback || 'Grade recorded via Gradebook.',
-          is_released: true,
-          submitted_at: new Date().toISOString()
-        }]);
-        if (error) {
-          alert("Supabase Grading Insert Error: " + error.message);
-          return;
-        }
-      } else {
-        const { error } = await supabase
-          .from('submissions')
-          .update({ score, feedback: feedback || 'Grade updated via Gradebook.' })
-          .eq('id', subId);
+    // Determine group assignment context if available
+    const taskObj = assignments.find(a => a.id === taskId);
+    const isGroupAssign = taskObj ? (taskObj.isGroup || taskObj.is_group) : false;
+    const courseGroup = groups.find(g => 
+      (g.courseId === taskObj?.courseId || g.course_id === taskObj?.courseId || g.courseId === taskObj?.course_id) &&
+      g.memberIds && g.memberIds.includes(studentId)
+    );
+    const targetGroupId = courseGroup ? courseGroup.id : null;
 
-        if (error) {
-          alert("Supabase Grading Error: " + error.message);
-          return;
-        }
+    if (isSupabaseConfigured) {
+      const subRecord = {
+        id: realSubId,
+        task_id: taskId,
+        student_id: studentId,
+        type: taskType,
+        is_group_submission: isGroupAssign && !!targetGroupId,
+        group_id: isGroupAssign ? targetGroupId : null,
+        score,
+        feedback: feedback || 'Grade recorded via Gradebook.',
+        is_released: true,
+        submitted_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('submissions')
+        .upsert([subRecord], { onConflict: 'id' });
+
+      if (error) {
+        alert("Supabase Grading Error: " + error.message);
+        return;
       }
     }
 
-    if (isVirtual) {
-      const newSub = {
-        id: realSubId,
-        taskId,
-        studentId,
-        type: taskType,
-        isGroupSubmission: false,
-        score,
-        feedback: feedback || 'Grade recorded via Gradebook.',
-        isReleased: true,
-        submittedAt: new Date().toISOString()
-      };
-      setSubmissions([...submissions, newSub]);
-      triggerToast(`Grade recorded for student!`);
-    } else {
-      setSubmissions(submissions.map(sub => {
-        if (sub.id === subId) {
-          return { ...sub, score, feedback: feedback || sub.feedback };
-        }
-        return sub;
-      }));
-      const subToGrade = submissions.find(s => s.id === subId);
-      triggerToast(`Grade recorded for ${subToGrade?.isGroupSubmission ? subToGrade.groupName : 'student'}!`);
-    }
+    setSubmissions(prev => {
+      const existingIdx = prev.findIndex(s => s.id === subId || s.id === realSubId);
+      if (existingIdx >= 0) {
+        return prev.map((s, idx) => idx === existingIdx ? {
+          ...s,
+          id: realSubId,
+          score,
+          feedback: feedback || s.feedback || 'Grade recorded via Gradebook.',
+          isGroupSubmission: isGroupAssign && !!targetGroupId,
+          groupId: isGroupAssign ? targetGroupId : s.groupId,
+          groupName: courseGroup ? courseGroup.name : s.groupName
+        } : s);
+      } else {
+        return [...prev, {
+          id: realSubId,
+          taskId,
+          studentId,
+          type: taskType,
+          isGroupSubmission: isGroupAssign && !!targetGroupId,
+          groupId: isGroupAssign ? targetGroupId : null,
+          groupName: courseGroup ? courseGroup.name : null,
+          score,
+          feedback: feedback || 'Grade recorded via Gradebook.',
+          isReleased: true,
+          submittedAt: new Date().toISOString()
+        }];
+      }
+    });
+
+    triggerToast(`Grade recorded successfully!`);
   };
 
   const handleAddPaperTestResults = async (newTest, results) => {

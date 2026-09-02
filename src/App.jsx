@@ -763,12 +763,13 @@ Possible Solutions:
 
     // Determine group assignment context if available
     const taskObj = assignments.find(a => a.id === taskId);
-    const isGroupAssign = taskObj ? (taskObj.isGroup || taskObj.is_group) : false;
+    const isGroupAssign = Boolean(taskObj?.isGroup || taskObj?.is_group);
     const courseGroup = groups.find(g => 
       (g.courseId === taskObj?.courseId || g.course_id === taskObj?.courseId || g.courseId === taskObj?.course_id) &&
       g.memberIds && g.memberIds.includes(studentId)
     );
     const targetGroupId = courseGroup ? courseGroup.id : null;
+    const isGroupSubmissionBool = Boolean(isGroupAssign && targetGroupId);
 
     if (isSupabaseConfigured) {
       const subRecord = {
@@ -776,9 +777,9 @@ Possible Solutions:
         task_id: taskId,
         student_id: studentId,
         type: taskType,
-        is_group_submission: isGroupAssign && !!targetGroupId,
-        group_id: isGroupAssign ? targetGroupId : null,
-        score,
+        is_group_submission: isGroupSubmissionBool,
+        group_id: isGroupSubmissionBool ? targetGroupId : null,
+        score: score !== undefined && score !== null ? Number(score) : 0,
         feedback: feedback || 'Grade recorded via Gradebook.',
         is_released: true,
         submitted_at: new Date().toISOString()
@@ -802,8 +803,9 @@ Possible Solutions:
           id: realSubId,
           score,
           feedback: feedback || s.feedback || 'Grade recorded via Gradebook.',
-          isGroupSubmission: isGroupAssign && !!targetGroupId,
-          groupId: isGroupAssign ? targetGroupId : s.groupId,
+          isGroupSubmission: isGroupSubmissionBool,
+          is_group_submission: isGroupSubmissionBool,
+          groupId: isGroupSubmissionBool ? targetGroupId : s.groupId,
           groupName: courseGroup ? courseGroup.name : s.groupName
         } : s);
       } else {
@@ -812,8 +814,9 @@ Possible Solutions:
           taskId,
           studentId,
           type: taskType,
-          isGroupSubmission: isGroupAssign && !!targetGroupId,
-          groupId: isGroupAssign ? targetGroupId : null,
+          isGroupSubmission: isGroupSubmissionBool,
+          is_group_submission: isGroupSubmissionBool,
+          groupId: isGroupSubmissionBool ? targetGroupId : null,
           groupName: courseGroup ? courseGroup.name : null,
           score,
           feedback: feedback || 'Grade recorded via Gradebook.',
